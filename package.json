@@ -1,0 +1,43 @@
+{
+  "name": "pulsecraft",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Suivi sportif et santé local-first, avec coach IA — React + noyau Rust/WASM, coque Tauri 2.",
+  "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "wasm:build": "wasm-pack build crates/pulse-core --release --target web --out-dir ../../src/wasm/pulse-core",
+    "wasm:test": "cargo test --manifest-path crates/pulse-core/Cargo.toml",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.4",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.3",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^5.6.3",
+    "vite": "^8.3.4",
+    "vitest": "^4.1.12",
+    "wasm-pack": "^0.13.1"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "pulse-core",
+  "type": "module",
+  "description": "Noyau de calcul santé et entraînement de PulseCraft (Rust → WebAssembly)",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DmzGamingYT/pulsecraft"
+  },
+  "files": [
+    "pulse_core_bg.wasm",
+    "pulse_core.js",
+    "pulse_core.d.ts"
+  ],
+  "main": "pulse_core.js",
+  "types": "pulse_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
