@@ -26,13 +26,13 @@ const MAIN_NAV: NavItem[] = [
 
 const MOBILE_NAV: NavItem[] = [
   { to: '/', label: "Aujourd'hui", icon: 'today', end: true },
+  { to: '/plan', label: 'Plan', icon: 'target' },
   { to: '/activite', label: 'Activité', icon: 'activity' },
-  { to: '/coach', label: 'Coach', icon: 'coach' },
   { to: '/progres', label: 'Progrès', icon: 'progress' },
 ];
 
 const MORE_NAV: NavItem[] = [
-  { to: '/plan', label: 'Plan', icon: 'target' },
+  { to: '/coach', label: 'Coach IA', icon: 'coach' },
   { to: '/sommeil', label: 'Sommeil', icon: 'sleep' },
   { to: '/corps', label: 'Corps', icon: 'body' },
   { to: '/nutrition', label: 'Nutrition', icon: 'nutrition' },

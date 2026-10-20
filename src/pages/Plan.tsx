@@ -3,7 +3,15 @@ import { usePulse } from '../store';
 import { useUi } from '../lib/uiStore';
 import { fetchPlanNarrative } from '../lib/ai';
 import { aiReady } from '../lib/llm';
-import { EQUIPMENT_LABELS, GOALS, planPhaseFor, planStats, weekIndexFor } from '../lib/plan';
+import {
+  EQUIPMENT_LABELS,
+  GOALS,
+  planPhaseFor,
+  planStats,
+  rebuildPlan,
+  weekIndexFor,
+} from '../lib/plan';
+import { isMonthlyProgram } from '../lib/monthly';
 import { addDays, formatMedium, formatWeekday, todayISO } from '../lib/dates';
 import { fmtMinutes, fmtNumber } from '../lib/format';
 import type { PlanSession } from '../types';
@@ -11,6 +19,8 @@ import { PageHeader, SectionCard, EmptyState } from '../components/Page';
 import { ProgressBar } from '../components/Charts';
 import { Icon } from '../components/Icon';
 import { SessionSheet } from '../components/SessionSheet';
+import { PlanAdjust } from '../components/PlanAdjust';
+import { MonthCard } from '../components/MonthCard';
 
 /**
  * Le plan long terme, rendu lisible.
@@ -45,7 +55,11 @@ export function PlanPage() {
   const settings = usePulse((state) => state.settings);
   const toggle = usePulse((state) => state.toggleTrainingSession);
   const setTrainingPlan = usePulse((state) => state.setTrainingPlan);
+  const applyTrainingPlan = usePulse((state) => state.applyTrainingPlan);
+  const installMonthlyProgram = usePulse((state) => state.installMonthlyProgram);
+  const run = usePulse((state) => state.sessionRun);
   const openWizard = useUi((state) => state.openWizard);
+  const openRun = useUi((state) => state.openRun);
   const notify = useUi((state) => state.notify);
 
   const today = todayISO();
@@ -55,6 +69,7 @@ export function PlanPage() {
   const currentWeek = plan ? weekIndexFor(plan, today) : null;
   const [openWeek, setOpenWeek] = useState<number | null>(null);
   const [openSession, setOpenSession] = useState<{ week: number; id: string } | null>(null);
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const activeWeek = openWeek ?? currentWeek ?? 0;
 
   if (!plan || !stats) {
@@ -75,9 +90,21 @@ export function PlanPage() {
             title="Aucun plan pour l’instant"
             text="Le bilan de départ prend deux minutes : objectif, disponibilité, matériel. Battement en déduit un programme de 4 à 24 semaines, avec une semaine allégée toutes les quatre semaines."
             action={
-              <button type="button" className="btn btn--primary" onClick={openWizard}>
-                Faire mon bilan
-              </button>
+              <div className="empty__buttons">
+                <button type="button" className="btn btn--primary" onClick={openWizard}>
+                  Faire mon bilan
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => {
+                    installMonthlyProgram();
+                    notify('Programme du mois installé.', 'success');
+                  }}
+                >
+                  Installer le programme du mois
+                </button>
+              </div>
             }
           />
         </SectionCard>
@@ -86,6 +113,7 @@ export function PlanPage() {
   }
 
   const goal = GOALS[plan.goal];
+  const monthly = isMonthlyProgram(plan);
   const phase = currentWeek === null ? plan.phases[0] ?? null : planPhaseFor(plan, currentWeek);
   const week = plan.weeks[activeWeek];
   const isCurrentWeek = activeWeek === currentWeek;
@@ -121,17 +149,29 @@ export function PlanPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow={`Plan ${plan.horizonWeeks} semaines · ${goal.label}`}
+        eyebrow={
+          monthly
+            ? `Programme du mois ${(plan.monthIndex ?? 0) + 1} · ${goal.label}`
+            : `Plan ${plan.horizonWeeks} semaines · ${goal.label}`
+        }
         title={
           <>
             Votre cap<span className="title-dot">.</span>
           </>
         }
-        subtitle={`${plan.intake.daysPerWeek} séances de ${plan.intake.sessionMin} min par semaine · ${EQUIPMENT_LABELS[plan.intake.equipment]} · ${goal.tagline.toLowerCase()}.`}
+        subtitle={
+          monthly
+            ? `${plan.intake.daysPerWeek} séances de ${plan.intake.sessionMin} min par semaine · poids du corps et haltères légers · créneaux autour de l’atelier 14 h–18 h.`
+            : `${plan.intake.daysPerWeek} séances de ${plan.intake.sessionMin} min par semaine · ${EQUIPMENT_LABELS[plan.intake.equipment].toLowerCase()}.`
+        }
         actions={
           <>
-            <button type="button" className="btn btn--ghost btn--small" onClick={openWizard}>
-              <Icon name="settings" size={16} /> Refaire le bilan
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => setAdjustOpen(true)}
+            >
+              <Icon name="settings" size={16} /> Ajuster
             </button>
             <button
               type="button"
@@ -150,6 +190,8 @@ export function PlanPage() {
         }
       />
 
+      {monthly ? <MonthCard plan={plan} /> : null}
+
       {!hasExerciseDetail ? (
         <div className="lp-upgrade">
           <span className="lp-upgrade__icon">
@@ -158,11 +200,18 @@ export function PlanPage() {
           <div>
             <strong>Ce plan date d’avant les séances détaillées.</strong>
             <p>
-              Refaites le bilan (2 minutes) pour obtenir les mouvements, les séries et les dips
-              au poids du corps.
+              Mettez-le à jour : vous obtiendrez les mouvements, les séries, le repos et les dips
+              adaptés à votre matériel, sans perdre vos séances cochées.
             </p>
           </div>
-          <button type="button" className="btn btn--primary btn--small" onClick={openWizard}>
+          <button
+            type="button"
+            className="btn btn--primary btn--small"
+            onClick={() => {
+              applyTrainingPlan(rebuildPlan(plan, plan.intake, { today }));
+              notify('Plan mis à jour : les séances sont maintenant détaillées.', 'success');
+            }}
+          >
             Mettre à jour
           </button>
         </div>
@@ -248,10 +297,19 @@ export function PlanPage() {
                 {isCurrentWeek ? <span className="lp-badge">Cette semaine</span> : null}
               </p>
               <ul className="lp-sessions">
-                {week.sessions.map((session) => (
+                {week.sessions.map((session) => {
+                  const running = Boolean(
+                    run &&
+                      run.planCreatedAt === plan.createdAt &&
+                      run.weekIndex === week.index &&
+                      run.sessionId === session.id
+                  );
+                  return (
                   <li
                     key={session.id}
-                    className={`lp-session${session.doneAt ? ' is-done' : ''}`}
+                    className={`lp-session${session.doneAt ? ' is-done' : ''}${
+                      running ? ' is-running' : ''
+                    }`}
                   >
                     <button
                       type="button"
@@ -297,12 +355,19 @@ export function PlanPage() {
                       ) : null}
                     </div>
                     <div className="lp-session__meta">
-                      <span>{formatWeekday(addDays(week.startDate, session.day))}</span>
+                      <span>
+                        {formatWeekday(addDays(week.startDate, session.day))}
+                        {session.time ? ` · ${session.time}` : ''}
+                      </span>
                       <em>{session.minutes} min</em>
                       <i className={`lp-intensity lp-intensity--${session.intensity}`}>
                         {INTENSITY_LABEL[session.intensity]}
                       </i>
-                      {session.exercises?.length ? (
+                      {running ? (
+                        <button type="button" className="textlink lp-session__open" onClick={openRun}>
+                          Reprendre <Icon name="arrow" size={14} />
+                        </button>
+                      ) : session.exercises?.length ? (
                         <button
                           type="button"
                           className="textlink lp-session__open"
@@ -313,7 +378,8 @@ export function PlanPage() {
                       ) : null}
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </>
           ) : null}
@@ -433,6 +499,12 @@ export function PlanPage() {
         médical : en cas de douleur persistante, de malaise ou de fatigue inhabituelle, arrêtez la
         séance et consultez un professionnel de santé.
       </p>
+
+      <PlanAdjust
+        open={adjustOpen}
+        onClose={() => setAdjustOpen(false)}
+        plan={plan}
+      />
 
       <SessionSheet
         open={Boolean(openSession)}

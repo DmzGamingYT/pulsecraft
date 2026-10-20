@@ -32,44 +32,93 @@ export function SessionSheet({
   session: PlanSession | null;
 }) {
   const toggle = usePulse((state) => state.toggleTrainingSession);
+  const startSessionRun = usePulse((state) => state.startSessionRun);
+  const run = usePulse((state) => state.sessionRun);
   const notify = useUi((state) => state.notify);
+  const openRun = useUi((state) => state.openRun);
 
   if (!session) return null;
 
   const week = plan.weeks[weekIndex];
   const date = week ? addDays(week.startDate, session.day) : null;
   const done = Boolean(session.doneAt);
-  const equipment = EQUIPMENT_LABELS[plan.intake.equipment];
+  // Le programme du mois n'utilise que le poids du corps et des haltères légers,
+  // quelle que soit la famille de matériel choisie ailleurs dans l'application.
+  const equipment =
+    plan.preset === 'monthly-muscle'
+      ? 'Poids du corps & haltères légers'
+      : EQUIPMENT_LABELS[plan.intake.equipment];
+  const activeRun = Boolean(
+    run &&
+      plan.createdAt === run.planCreatedAt &&
+      run.weekIndex === weekIndex &&
+      run.sessionId === session.id
+  );
+  // Une seule séance guidée à la fois : ne pas écraser une séance en cours.
+  const otherRun = Boolean(run && plan.createdAt === run.planCreatedAt && !activeRun);
+  // Repos et mobilité ne créent pas de séance dans le journal : le chrono
+  // guidé n'aurait rien à valider à la fin.
+  const canGuide = session.type !== 'Repos' && session.type !== 'Mobilité';
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       size="lg"
-      eyebrow={date ? `${formatMedium(date)} · ${session.minutes} min` : `${session.minutes} min`}
+      eyebrow={
+        date
+          ? `${formatMedium(date)}${session.time ? ` · ${session.time}` : ''} · ${session.minutes} min`
+          : `${session.minutes} min`
+      }
       title={session.title}
       footer={
-        <>
-          <button type="button" className="btn btn--ghost btn--small" onClick={onClose}>
-            Fermer
-          </button>
+        done ? (
           <button
             type="button"
-            className={`btn btn--small ${done ? 'btn--ghost' : 'btn--primary'}`}
-            aria-pressed={done}
+            className="btn btn--ghost btn--small"
             onClick={() => {
-              toggle(weekIndex, session.id, !done);
-              notify(
-                done ? 'Séance retirée du journal.' : `${session.title} ajoutée au journal.`,
-                done ? 'info' : 'success'
-              );
+              toggle(weekIndex, session.id, false);
+              notify('Séance retirée du journal.', 'info');
               onClose();
             }}
           >
-            <Icon name={done ? 'close' : 'check'} size={15} />
-            {done ? 'Retirer du journal' : 'Marquer la séance faite'}
+            <Icon name="close" size={15} /> Retirer du journal
           </button>
-        </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => {
+                toggle(weekIndex, session.id, true);
+                notify(`${session.title} ajoutée au journal.`, 'success');
+                onClose();
+              }}
+            >
+              <Icon name="check" size={15} /> Marquer faite
+            </button>
+            {canGuide ? (
+              <button
+                type="button"
+                className="btn btn--primary btn--small"
+                onClick={() => {
+                  if (!activeRun && !otherRun) {
+                    startSessionRun(plan.createdAt, weekIndex, session);
+                  }
+                  openRun();
+                  onClose();
+                }}
+              >
+                <Icon name={activeRun || otherRun ? 'run' : 'target'} size={15} />
+                {activeRun
+                  ? 'Reprendre la séance'
+                  : otherRun
+                    ? 'Reprendre la séance en cours'
+                    : 'Démarrer la séance'}
+              </button>
+            ) : null}
+          </>
+        )
       }
     >
       <div className="sess">
@@ -80,9 +129,11 @@ export function SessionSheet({
           <span className="sess__badge">
             <Icon name="clock" size={13} /> {session.minutes} min
           </span>
-          <span className="sess__badge">
-            <Icon name="strength" size={13} /> {equipment}
-          </span>
+          {session.exercises?.length ? (
+            <span className="sess__badge">
+              <Icon name="strength" size={13} /> {equipment}
+            </span>
+          ) : null}
           {done ? (
             <span className="sess__badge sess__badge--done">
               <Icon name="check" size={13} /> Faite
@@ -91,6 +142,13 @@ export function SessionSheet({
         </div>
 
         <p className="sess__detail">{session.detail}</p>
+
+        {otherRun ? (
+          <p className="sess__notice">
+            <Icon name="alert" size={14} /> Une autre séance est en cours. Reprenez-la, terminez-la
+            ou abandonnez-la avant d’en démarrer une nouvelle.
+          </p>
+        ) : null}
 
         {session.exercises?.length ? (
           <>

@@ -67,7 +67,7 @@ export function ActivityPage() {
       />
 
       <div className="stats-grid">
-        <StatTile label="Séances" value={week.sessions} unit="7 j" icon="activity" tone="var(--coral)" detail={`${week.activeDays} jours actifs`} />
+        <StatTile label="Séances (7 j)" value={week.sessions} icon="activity" tone="var(--coral)" detail={`${week.activeDays} jours actifs`} />
         <StatTile label="Durée" value={Math.round(week.minutes)} unit="min" icon="clock" tone="var(--brand)" detail={`moy. ${week.sessions ? Math.round(week.minutes / week.sessions) : 0} min`} />
         <StatTile label="Distance" value={fmtDecimal(week.distanceKm)} unit="km" icon="route" tone="var(--cyan)" />
         <StatTile label="Charge" value={fmtNumber(week.load)} unit="pts" icon="flame" tone="var(--amber)" detail={`${fmtNumber(week.calories)} kcal`} />

@@ -5,7 +5,8 @@ import { useUi } from '../lib/uiStore';
 import { askCoach, fetchPlan, localCoachReply, localPlan } from '../lib/ai';
 import { readinessFor, sleepStats, summary } from '../lib/analytics';
 import { formatTime, todayISO } from '../lib/dates';
-import { fmtMinutes, fmtNumber } from '../lib/format';
+import { fmtDecimal, fmtMinutes, fmtNumber } from '../lib/format';
+import { providerLabel } from '../lib/llm';
 import { PageHeader, CoachText } from '../components/Page';
 import { ProgressBar } from '../components/Charts';
 import { Icon, PulseMark } from '../components/Icon';
@@ -183,7 +184,7 @@ export function CoachPage() {
               </span>
               <h2>Conversation</h2>
               <span className={`aibadge${aiEnabled ? ' aibadge--on' : ''}`}>
-                {aiEnabled ? 'Pollinations' : 'Local'}
+                {aiEnabled ? providerLabel(data.settings.ai) : 'Local'}
               </span>
             </div>
             {data.chat.length > 0 ? (
@@ -335,7 +336,7 @@ export function CoachPage() {
               </div>
               <div>
                 <span>Dette</span>
-                <strong>{sleep.debtHours ? `${sleep.debtHours} h` : '—'}</strong>
+                <strong>{sleep.debtHours ? `${fmtDecimal(sleep.debtHours)} h` : '—'}</strong>
               </div>
               <div>
                 <span>7 derniers jours</span>

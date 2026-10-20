@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Onboarding } from './components/Onboarding';
+import { SessionRun } from './components/SessionRun';
 import { AppIcon } from './components/AppIcon';
 import { useHydrated, usePulse } from './store';
 import { useUi } from './lib/uiStore';
@@ -80,6 +81,13 @@ export function App() {
     openWizard();
   }, [hydrated, onboardingDone, openWizard]);
 
+  // Le programme du mois est là en permanence : installé dès la première
+  // ouverture, il reste tant que le bilan ou un ajustement ne le remplace pas.
+  useEffect(() => {
+    if (!hydrated) return;
+    usePulse.getState().ensureMonthlyProgram();
+  }, [hydrated]);
+
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
@@ -106,6 +114,7 @@ export function App() {
         </Route>
       </Routes>
       <Onboarding open={wizardOpen} onClose={closeWizard} />
+      <SessionRun />
     </>
   );
 }

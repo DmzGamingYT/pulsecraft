@@ -4,8 +4,17 @@ import { useUi } from '../lib/uiStore';
 import { applyTheme } from '../lib/theme';
 import { useCoreStatus } from '../lib/core';
 import { clearBriefingCache } from '../lib/ai';
+import { EQUIPMENT_LABELS } from '../lib/plan';
 import { aiReady, PROVIDER_HINTS, PROVIDER_LABELS, testProvider, type TestResult } from '../lib/llm';
-import { buildExport, downloadFile, exportDate, workoutsCsv } from '../lib/export';
+import {
+  buildExport,
+  downloadFile,
+  exportDate,
+  exportSummary,
+  parseExport,
+  workoutsCsv,
+  type ExportBundle,
+} from '../lib/export';
 import { parseAppleHealthFile } from '../lib/imports/appleHealth';
 import { parseSamsungHealthCsv } from '../lib/imports/samsung';
 import { parseGpx, parseTcx } from '../lib/imports/activityFiles';
@@ -71,6 +80,8 @@ export function SettingsPage() {
   const clearEverything = usePulse((state) => state.clearEverything);
   const trainingPlan = usePulse((state) => state.trainingPlan);
   const resetTrainingPlan = usePulse((state) => state.resetTrainingPlan);
+  const installMonthlyProgram = usePulse((state) => state.installMonthlyProgram);
+  const restoreExport = usePulse((state) => state.restoreExport);
   const notify = useUi((state) => state.notify);
   const openWizard = useUi((state) => state.openWizard);
   const core = useCoreStatus();
@@ -82,7 +93,8 @@ export function SettingsPage() {
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
-  const [confirm, setConfirm] = useState<'reset' | 'clear' | null>(null);
+  const [confirm, setConfirm] = useState<'reset' | 'clear' | 'resetPlan' | null>(null);
+  const [pendingImport, setPendingImport] = useState<ExportBundle | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setProfile(data.profile), [data.profile]);
@@ -165,6 +177,12 @@ export function SettingsPage() {
       let payload: ImportPayload;
       if (name.endsWith('.zip')) {
         throw new Error('Décompressez d’abord export.zip, puis sélectionnez export.xml.');
+      }
+      if (name.endsWith('.json')) {
+        // Une sauvegarde remplace le journal : on demande confirmation avant
+        // d'écrire quoi que ce soit.
+        setPendingImport(parseExport(await file.text()));
+        return;
       }
       if (name.endsWith('.xml')) {
         payload = await parseAppleHealthFile(file);
@@ -565,7 +583,7 @@ export function SettingsPage() {
             title="Bilan de départ"
             description={
               trainingPlan
-                ? `Plan ${trainingPlan.horizonWeeks} semaines · ${trainingPlan.intake.daysPerWeek} séances de ${trainingPlan.intake.sessionMin} min. Refaire le bilan remplace le plan et conserve le journal.`
+                ? `Plan ${trainingPlan.horizonWeeks} semaines · ${trainingPlan.intake.daysPerWeek} séances de ${trainingPlan.intake.sessionMin} min · ${EQUIPMENT_LABELS[trainingPlan.intake.equipment].toLowerCase()}. Refaire le bilan remplace le plan et conserve le journal.`
                 : 'Objectif, disponibilité, matériel : deux minutes pour obtenir un programme de plusieurs semaines.'
             }
           >
@@ -575,17 +593,31 @@ export function SettingsPage() {
           </Row>
 
           <Row
+            title="Programme du mois"
+            description="Quatre semaines de renforcement au poids du corps et aux haltères légers, avec les créneaux calés hors atelier (14 h–18 h). L’installer remplace le plan en cours."
+          >
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => {
+                installMonthlyProgram();
+                notify('Programme du mois installé.', 'success');
+              }}
+            >
+              <Icon name="strength" size={15} />
+              {trainingPlan?.preset === 'monthly-muscle' ? 'Réinstaller le mois 1' : 'Installer le programme'}
+            </button>
+          </Row>
+
+          <Row
             title="Effacer le plan"
-            description="Le journal, le profil et les objectifs sont conservés. Utile pour repartir d’une feuille blanche."
+            description="Le journal, le profil et les objectifs sont conservés. Le programme du mois ne revient pas tout seul : vous pouvez le réinstaller ici."
           >
             <button
               type="button"
               className="btn btn--danger btn--small"
               disabled={!trainingPlan}
-              onClick={() => {
-                resetTrainingPlan();
-                notify('Plan effacé. Vous pouvez refaire le bilan quand vous voulez.', 'info');
-              }}
+              onClick={() => setConfirm('resetPlan')}
             >
               Effacer le plan
             </button>
@@ -599,7 +631,7 @@ export function SettingsPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".xml,.csv,.gpx,.tcx"
+            accept=".xml,.csv,.gpx,.tcx,.json"
             className="visuallyhidden"
             onChange={(event) => void handleFile(event)}
           />
@@ -628,6 +660,14 @@ export function SettingsPage() {
               <strong>GPX / TCX</strong>
               <p>Un parcours GPS ou une activité exportée par une montre. Distance, durée et dénivelé sont calculés.</p>
               <em>{importing ? 'Import en cours…' : 'Choisir .gpx ou .tcx'}</em>
+            </button>
+            <button type="button" className="importcard" onClick={openFilePicker} disabled={importing}>
+              <span className="importcard__icon importcard__icon--backup">
+                <Icon name="upload" size={20} />
+              </span>
+              <strong>Sauvegarde Battement</strong>
+              <p>Un fichier JSON exporté depuis « Exporter tout ». Il remplace le journal après confirmation.</p>
+              <em>{importing ? 'Lecture en cours…' : 'Choisir un .json'}</em>
             </button>
           </div>
 
@@ -723,7 +763,7 @@ export function SettingsPage() {
               <li>Vite 8</li>
               <li>Rust → WebAssembly</li>
               <li>Tauri 2</li>
-              <li>Pollinations</li>
+              <li>IndexedDB</li>
             </ul>
             <p>
               Battement est un projet indépendant, non affilié à Apple ni à Samsung. Apple Health
@@ -745,8 +785,14 @@ export function SettingsPage() {
       <Modal
         open={confirm !== null}
         onClose={() => setConfirm(null)}
-        title={confirm === 'clear' ? 'Tout effacer ?' : 'Effacer le journal ?'}
-        eyebrow="Action irréversible"
+        title={
+          confirm === 'clear'
+            ? 'Tout effacer ?'
+            : confirm === 'resetPlan'
+              ? 'Effacer le plan ?'
+              : 'Effacer le journal ?'
+        }
+        eyebrow={confirm === 'resetPlan' ? 'Le journal reste intact' : 'Action irréversible'}
         size="sm"
         footer={
           <>
@@ -761,6 +807,9 @@ export function SettingsPage() {
                   clearEverything();
                   applyTheme('system');
                   notify('Toutes les données ont été effacées.', 'info');
+                } else if (confirm === 'resetPlan') {
+                  resetTrainingPlan();
+                  notify('Plan effacé. Le programme du mois ne revient que si vous l’installez.', 'info');
                 } else {
                   resetData();
                   notify('Journal effacé. Profil et objectifs conservés.', 'info');
@@ -769,7 +818,11 @@ export function SettingsPage() {
                 setConfirm(null);
               }}
             >
-              {confirm === 'clear' ? 'Tout effacer' : 'Effacer le journal'}
+              {confirm === 'clear'
+                ? 'Tout effacer'
+                : confirm === 'resetPlan'
+                  ? 'Effacer le plan'
+                  : 'Effacer le journal'}
             </button>
           </>
         }
@@ -777,11 +830,58 @@ export function SettingsPage() {
         <p className="modal__warning">
           {confirm === 'clear'
             ? 'Profil, objectifs, réglages, séances, nuits, mesures, repas et pas quotidiens seront supprimés. Aucune copie ne sera conservée.'
-            : 'Séances, nuits, mesures, repas, pas quotidiens et conversation du coach seront supprimés. Votre profil et vos objectifs restent en place.'}
+            : confirm === 'resetPlan'
+              ? 'Le plan d’entraînement et la séance guidée en cours seront retirés. Les séances déjà cochées restent dans le journal, et vous pourrez refaire le bilan ou réinstaller le programme du mois.'
+              : 'Séances, nuits, mesures, repas, pas quotidiens et conversation du coach seront supprimés. Votre profil et vos objectifs restent en place.'}
         </p>
-        <p className="pagenote">
-          Pensez à exporter vos données avant, si vous souhaitez les conserver.
-        </p>
+        {confirm === 'resetPlan' ? null : (
+          <p className="pagenote">
+            Pensez à exporter vos données avant, si vous souhaitez les conserver.
+          </p>
+        )}
+      </Modal>
+
+      <Modal
+        open={pendingImport !== null}
+        onClose={() => setPendingImport(null)}
+        title="Restaurer cette sauvegarde ?"
+        eyebrow="Sauvegarde JSON"
+        size="sm"
+        footer={
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setPendingImport(null)}>
+              Annuler
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => {
+                if (!pendingImport) return;
+                restoreExport(pendingImport);
+                setPendingImport(null);
+                setReport(null);
+                notify('Sauvegarde restaurée.', 'success');
+              }}
+            >
+              Restaurer
+            </button>
+          </>
+        }
+      >
+        {pendingImport ? (
+          <>
+            <p className="modal__warning">
+              Le journal actuel sera remplacé par : {exportSummary(pendingImport)}.
+            </p>
+            <p className="pagenote">
+              Fichier exporté le{' '}
+              {Number.isNaN(new Date(pendingImport.exportedAt).getTime())
+                ? 'date inconnue'
+                : new Date(pendingImport.exportedAt).toLocaleDateString('fr-FR')}
+              . Le plan d’entraînement et les réglages de l’appareil restent en place.
+            </p>
+          </>
+        ) : null}
       </Modal>
     </div>
   );

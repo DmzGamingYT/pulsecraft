@@ -5,7 +5,7 @@ import { usePulse } from '../store';
 import { useUi } from '../lib/uiStore';
 import { fetchPlanNarrative } from '../lib/ai';
 import { aiReady, PROVIDER_HINTS, PROVIDER_LABELS, testProvider, type TestResult } from '../lib/llm';
-import { buildPlan, EXPERIENCE_LABELS, GOALS, localPlanNote } from '../lib/plan';
+import { buildPlan, EQUIPMENT_LABELS, EXPERIENCE_LABELS, GOALS, localPlanNote } from '../lib/plan';
 import { addDays, todayISO } from '../lib/dates';
 import type {
   AiConfig,
@@ -295,7 +295,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
 
           {step === 1 ? (
             <section className="onb-step">
-              <p className="kicker">Étape 1 · Profil</p>
+              <p className="kicker">Bilan · Profil</p>
               <h2 id="onb-title">Vos repères de calcul</h2>
               <p className="onb-step__sub">
                 Ils servent aux zones cardiaques, aux calories et à l’IMC. Aucun n’est transmis à
@@ -372,7 +372,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
 
           {step === 2 ? (
             <section className="onb-step">
-              <p className="kicker">Étape 2 · Objectif</p>
+              <p className="kicker">Bilan · Objectif</p>
               <h2 id="onb-title">Où voulez-vous aller ?</h2>
               <p className="onb-step__sub">
                 Un seul objectif principal : le plan sera plus lisible, et plus facile à tenir.
@@ -424,7 +424,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
 
           {step === 3 ? (
             <section className="onb-step">
-              <p className="kicker">Étape 3 · Rythme</p>
+              <p className="kicker">Bilan · Rythme</p>
               <h2 id="onb-title">Ce que vous pouvez réellement tenir</h2>
               <p className="onb-step__sub">
                 Mieux vaut un plan modeste tenu qu’un programme ambitieux abandonné en trois
@@ -540,7 +540,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
 
           {step === 4 ? (
             <section className="onb-step">
-              <p className="kicker">Étape 4 · Coach IA</p>
+              <p className="kicker">Bilan · Coach IA</p>
               <h2 id="onb-title">Quel modèle doit vous accompagner ?</h2>
               <p className="onb-step__sub">
                 Le plan est calculé sans IA. Le modèle sert à commenter, ajuster et répondre dans le
@@ -655,13 +655,14 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
 
           {step === LAST ? (
             <section className="onb-step onb-step--plan">
-              <p className="kicker">Étape 5 · Votre plan</p>
+              <p className="kicker">Bilan · Votre plan</p>
               <h2 id="onb-title">
                 {GOALS[form.goal].label} sur {preview?.horizonWeeks ?? 12} semaines
                 <span className="title-dot">.</span>
               </h2>
               <p className="onb-step__sub">
-                {form.daysPerWeek} séances de {form.sessionMin} min, avec une semaine allégée toutes
+                {form.daysPerWeek} séances de {form.sessionMin} min ·{' '}
+                {EQUIPMENT_LABELS[form.equipment].toLowerCase()}, avec une semaine allégée toutes
                 les quatre semaines.
               </p>
 
@@ -700,7 +701,10 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
                         <li key={session.id}>
                           <i className={`onb-week__badge onb-week__badge--${session.intensity}`} />
                           <span>{session.title}</span>
-                          <em>{session.minutes} min</em>
+                          <em>
+                            {session.minutes} min
+                            {session.exercises?.length ? ` · ${session.exercises.length} mouvements` : ''}
+                          </em>
                         </li>
                       ))}
                     </ul>

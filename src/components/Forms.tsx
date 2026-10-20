@@ -66,6 +66,16 @@ function parseOptional(value: string): number | undefined {
 
 const emptyIf = (value: string) => (value.trim() === '' ? '' : value);
 
+/** Activités pour lesquelles une distance a un sens : ailleurs, le champ est masqué. */
+const DISTANCE_TYPES: readonly WorkoutType[] = ['Course', 'Marche', 'Vélo', 'Natation', 'Rameur'];
+const usesDistance = (type: WorkoutType) => DISTANCE_TYPES.includes(type);
+
+/** Heure courante au format `HH:MM`, pour préremplir une séance ajoutée maintenant. */
+function currentTime(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
 /* ------------------------------------------------------------------ séance */
 
 export function WorkoutModal({
@@ -82,7 +92,7 @@ export function WorkoutModal({
   const notify = useUi((state) => state.notify);
 
   const [date, setDate] = useState(defaultDate);
-  const [time, setTime] = useState('07:30');
+  const [time, setTime] = useState(currentTime);
   const [type, setType] = useState<WorkoutType>('Course');
   const [duration, setDuration] = useState('45');
   const [distance, setDistance] = useState('8');
@@ -96,6 +106,7 @@ export function WorkoutModal({
   useEffect(() => {
     if (!open) return;
     setDate(defaultDate);
+    setTime(currentTime());
     setType('Course');
     setDuration('45');
     setDistance('8');
@@ -126,15 +137,39 @@ export function WorkoutModal({
       setError('Une séance ne peut pas dépasser 24 heures.');
       return;
     }
+    const avgHrValue = parseOptional(avgHr);
+    const maxHrParsed = parseOptional(maxHrValue);
+    if (avgHrValue !== undefined && (avgHrValue < 30 || avgHrValue > 240)) {
+      setError('La FC moyenne doit être comprise entre 30 et 240 bpm.');
+      return;
+    }
+    if (maxHrParsed !== undefined && (maxHrParsed < 30 || maxHrParsed > 240)) {
+      setError('La FC max doit être comprise entre 30 et 240 bpm.');
+      return;
+    }
+    if (avgHrValue !== undefined && maxHrParsed !== undefined && maxHrParsed < avgHrValue) {
+      setError('La FC max ne peut pas être inférieure à la FC moyenne.');
+      return;
+    }
+    const rpeValue = parseOptional(rpe);
+    if (rpeValue !== undefined && (rpeValue < 1 || rpeValue > 10)) {
+      setError('L’effort ressenti se note de 1 à 10.');
+      return;
+    }
+    const distanceValue = usesDistance(type) ? parseOptional(distance) : undefined;
+    if (distanceValue !== undefined && (distanceValue < 0 || distanceValue > 500)) {
+      setError('La distance doit rester entre 0 et 500 km.');
+      return;
+    }
     addWorkout({
       date,
       time: time || undefined,
       type,
       durationMin: minutes,
-      distanceKm: parseOptional(distance),
-      avgHr: parseOptional(avgHr),
-      maxHr: parseOptional(maxHrValue),
-      rpe: parseOptional(rpe),
+      distanceKm: distanceValue,
+      avgHr: avgHrValue,
+      maxHr: maxHrParsed,
+      rpe: rpeValue,
       calories: parseOptional(calories),
       notes: notes.trim() || undefined,
     });
@@ -165,7 +200,10 @@ export function WorkoutModal({
             type="button"
             key={item}
             className={`typechip${item === type ? ' is-active' : ''}`}
-            onClick={() => setType(item)}
+            onClick={() => {
+              setType(item);
+              setDistance(usesDistance(item) ? '8' : '');
+            }}
             aria-pressed={item === type}
           >
             <Icon name={WORKOUT_META[item].icon} size={17} />
@@ -184,9 +222,11 @@ export function WorkoutModal({
         <Field label="Durée (min)">
           <NumberInput value={duration} onChange={setDuration} placeholder="45" min={1} max={1440} />
         </Field>
-        <Field label="Distance (km)" hint="Facultatif">
-          <NumberInput value={distance} onChange={setDistance} placeholder="8" />
-        </Field>
+        {usesDistance(type) ? (
+          <Field label="Distance (km)" hint="Facultatif">
+            <NumberInput value={distance} onChange={setDistance} placeholder="8" />
+          </Field>
+        ) : null}
         <Field label="FC moyenne (bpm)">
           <NumberInput value={avgHr} onChange={setAvgHr} placeholder="148" min={30} max={240} />
         </Field>
@@ -264,14 +304,24 @@ export function SleepModal({ open, onClose }: { open: boolean; onClose: () => vo
       setError('Cette durée semble trop longue : vérifiez les heures.');
       return;
     }
+    const deepValue = parseOptional(deep);
+    const remValue = parseOptional(rem);
+    if ((deepValue ?? 0) < 0 || (remValue ?? 0) < 0) {
+      setError('Les stades de sommeil ne peuvent pas être négatifs.');
+      return;
+    }
+    if ((deepValue ?? 0) + (remValue ?? 0) > duration) {
+      setError('Profond + REM dépassent la durée totale de la nuit.');
+      return;
+    }
     addSleep({
       date,
       durationMin: duration,
       quality,
       bedtime: bedtime || undefined,
       wake: wake || undefined,
-      deepMin: parseOptional(deep),
-      remMin: parseOptional(rem),
+      deepMin: deepValue,
+      remMin: remValue,
     });
     notify('Nuit enregistrée.');
     onClose();

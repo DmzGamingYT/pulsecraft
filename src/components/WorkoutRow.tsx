@@ -31,6 +31,14 @@ export function WorkoutRow({
     workout.distanceKm && workout.distanceKm > 0.5
       ? fmtPace(workout.durationMin / workout.distanceKm)
       : null;
+  const metaLine = [
+    showDate ? relativeDay(workout.date) : '',
+    workout.time ?? '',
+    workout.distanceKm ? `${fmtDecimal(workout.distanceKm)} km` : '',
+    workout.rpe ? `effort ${workout.rpe}/10` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <article
@@ -48,13 +56,7 @@ export function WorkoutRow({
         </span>
         <span className="workout__title">
           <strong>{workout.type}</strong>
-          <span>
-            {showDate ? `${relativeDay(workout.date)} · ` : ''}
-            {workout.time ? `${workout.time} · ` : ''}
-            {workout.distanceKm ? `${fmtDecimal(workout.distanceKm)} km` : ''}
-            {workout.distanceKm ? ' · ' : ''}
-            {workout.rpe ? `effort ${workout.rpe}/10` : workout.distanceKm ? '' : 'séance'}
-          </span>
+          <span>{metaLine || '—'}</span>
         </span>
         <span className="workout__metrics">
           <span>

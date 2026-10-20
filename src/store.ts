@@ -18,7 +18,9 @@ import type {
   ImportPayload,
   Meal,
   PlanIntake,
+  PlanSession,
   Profile,
+  SessionRun,
   Settings,
   SleepEntry,
   Source,
@@ -26,11 +28,13 @@ import type {
   Workout,
 } from './types';
 import { DEFAULT_GOALS, DEFAULT_PROFILE, DEFAULT_SETTINGS } from './types';
-import { todayISO } from './lib/dates';
+import { addDays, todayISO } from './lib/dates';
 import { makeDemoData } from './lib/demo';
 import { newId } from './lib/id';
 import { idbStorage } from './lib/idbStorage';
 import { togglePlanSession } from './lib/plan';
+import { buildMonthlyProgram, nextMonthlyProgram } from './lib/monthly';
+import type { ExportBundle } from './lib/export';
 
 export type WorkoutInput = Omit<Workout, 'id' | 'source'> & {
   source?: Source;
@@ -62,7 +66,11 @@ interface PulseState {
   /** Programme long terme structuré, issu du bilan de démarrage. */
   trainingPlan: TrainingPlan | null;
   intake: PlanIntake | null;
+  /** Séance guidée en cours, reprise après fermeture ou rechargement. */
+  sessionRun: SessionRun | null;
   onboardingDone: boolean;
+  /** Le plan a été effacé volontairement : ne pas réinstaller le mois tout seul. */
+  planDismissed: boolean;
 
   addWorkout: (input: WorkoutInput) => void;
   removeWorkout: (id: string) => void;
@@ -81,6 +89,16 @@ interface PulseState {
   clearChat: () => void;
   setPlan: (plan: CoachPlan | null) => void;
   setTrainingPlan: (plan: TrainingPlan | null) => void;
+  /** Remplace le plan après un ajustement, en gardant l'objectif d'entraînement à jour. */
+  applyTrainingPlan: (plan: TrainingPlan) => void;
+  /** Installe le programme du mois s'il n'y a encore aucun plan. */
+  ensureMonthlyProgram: () => void;
+  /** (Ré)installe le programme du mois, premier bloc, à partir d'aujourd'hui. */
+  installMonthlyProgram: () => void;
+  /** Enchaîne le mois suivant du programme du mois. */
+  rollMonthlyProgram: () => void;
+  /** Restaure une sauvegarde JSON exportée par l'app (remplace le journal). */
+  restoreExport: (bundle: ExportBundle) => void;
   completeOnboarding: (payload: {
     intake: PlanIntake;
     plan: TrainingPlan;
@@ -88,7 +106,19 @@ interface PulseState {
     goals?: Partial<Goals>;
   }) => void;
   skipOnboarding: () => void;
-  toggleTrainingSession: (weekIndex: number, sessionId: string, done: boolean) => void;
+  toggleTrainingSession: (
+    weekIndex: number,
+    sessionId: string,
+    done: boolean,
+    durationMin?: number
+  ) => void;
+  startSessionRun: (planCreatedAt: string, weekIndex: number, session: PlanSession) => void;
+  setExerciseSets: (exerciseIndex: number, count: number) => void;
+  startRest: (seconds: number, exerciseIndex: number) => void;
+  extendRest: (seconds: number) => void;
+  clearRest: () => void;
+  finishSessionRun: (durationMin: number) => void;
+  discardSessionRun: () => void;
   resetTrainingPlan: () => void;
   importData: (payload: ImportPayload, options?: { real?: boolean }) => ImportSummary;
   loadDemo: () => void;
@@ -97,6 +127,21 @@ interface PulseState {
 }
 
 const byDateDesc = <T extends { date: string }>(a: T, b: T) => (a.date < b.date ? 1 : -1);
+
+/**
+ * Le journal est effacé ou remplacé : les séances du plan ne peuvent plus
+ * rester cochées, sinon le plan affiche des séances faites sans séance source.
+ */
+function clearPlanProgress(plan: TrainingPlan | null): TrainingPlan | null {
+  if (!plan) return plan;
+  return {
+    ...plan,
+    weeks: plan.weeks.map((week) => ({
+      ...week,
+      sessions: week.sessions.map((session) => ({ ...session, doneAt: undefined })),
+    })),
+  };
+}
 
 function mergeWorkouts(existing: Workout[], incoming: Workout[]): { items: Workout[]; added: number } {
   const key = (w: Workout) =>
@@ -154,7 +199,9 @@ export const usePulse = create<PulseState>()(
       plan: null,
       trainingPlan: null,
       intake: null,
+      sessionRun: null,
       onboardingDone: false,
+      planDismissed: false,
 
       addWorkout: (input) =>
         set((state) => ({
@@ -238,11 +285,55 @@ export const usePulse = create<PulseState>()(
 
       setTrainingPlan: (trainingPlan) => set({ trainingPlan }),
 
+      applyTrainingPlan: (trainingPlan) =>
+        set((state) => ({
+          trainingPlan,
+          intake: trainingPlan.intake,
+          planDismissed: false,
+          goals: { ...state.goals, exerciseMin: trainingPlan.intake.sessionMin },
+          // Une séance guidée liée à l'ancien plan ne doit pas reprendre.
+          sessionRun: null,
+        })),
+
+      ensureMonthlyProgram: () => {
+        // Un plan effacé à la main ne revient pas au rechargement suivant.
+        if (get().trainingPlan || get().planDismissed) return;
+        get().applyTrainingPlan(buildMonthlyProgram());
+      },
+
+      installMonthlyProgram: () => get().applyTrainingPlan(buildMonthlyProgram()),
+
+      restoreExport: (bundle) =>
+        set({
+          demo: false,
+          profile: { ...DEFAULT_PROFILE, ...bundle.profile },
+          goals: { ...DEFAULT_GOALS, ...bundle.goals },
+          workouts: [...bundle.workouts].sort(byDateDesc),
+          sleeps: [...bundle.sleeps].sort(byDateDesc),
+          body: [...bundle.body].sort(byDateDesc),
+          meals: [...bundle.meals].sort(byDateDesc),
+          days: bundle.days,
+          chat: [],
+          plan: null,
+          sessionRun: null,
+          // Le plan d'entraînement n'est pas dans la sauvegarde : il reste en
+          // place, mais son historique de cases cochées est remis à zéro.
+          trainingPlan: clearPlanProgress(get().trainingPlan),
+        }),
+
+      rollMonthlyProgram: () => {
+        const current = get().trainingPlan;
+        if (!current || current.preset !== 'monthly-muscle') return;
+        get().applyTrainingPlan(nextMonthlyProgram(current));
+      },
+
       completeOnboarding: ({ intake, plan, profile, goals }) =>
         set((state) => ({
           intake,
           trainingPlan: plan,
           onboardingDone: true,
+          planDismissed: false,
+          sessionRun: null,
           profile: { ...state.profile, ...profile },
           goals: {
             ...state.goals,
@@ -254,14 +345,19 @@ export const usePulse = create<PulseState>()(
 
       skipOnboarding: () => set({ onboardingDone: true }),
 
-      toggleTrainingSession: (weekIndex, sessionId, done) =>
+      toggleTrainingSession: (weekIndex, sessionId, done, durationMin) =>
         set((state) => {
           if (!state.trainingPlan) return {};
-          const session = state.trainingPlan.weeks
-            .find((week) => week.index === weekIndex)
-            ?.sessions.find((item) => item.id === sessionId);
+          const week = state.trainingPlan.weeks.find((item) => item.index === weekIndex);
+          const session = week?.sessions.find((item) => item.id === sessionId);
           if (!session) return {};
 
+          // La séance entre dans le journal à SA date, pas à celle du jour :
+          // cocher mercredi un lundi ne doit pas déplacer la séance. Une séance
+          // faite en avance est enregistrée aujourd'hui.
+          const today = todayISO();
+          const scheduled = week ? addDays(week.startDate, session.day) : today;
+          const workoutDate = scheduled > today ? today : scheduled;
           const externalId = `plan:${state.trainingPlan.createdAt}:${sessionId}`;
           let workouts = state.workouts;
 
@@ -271,9 +367,9 @@ export const usePulse = create<PulseState>()(
                 ...workouts,
                 {
                   id: newId('w'),
-                  date: todayISO(),
+                  date: workoutDate,
                   type: session.type,
-                  durationMin: session.minutes,
+                  durationMin: Math.max(1, Math.round(durationMin ?? session.minutes)),
                   rpe: session.intensity === 'soutenue' ? 8 : session.intensity === 'modérée' ? 6 : 4,
                   notes: `Plan : ${session.title}`,
                   source: 'manuel' as Source,
@@ -288,10 +384,99 @@ export const usePulse = create<PulseState>()(
           return {
             workouts,
             trainingPlan: togglePlanSession(state.trainingPlan, weekIndex, sessionId, done),
+            // Cocher la séance depuis la fiche termine aussi la séance guidée.
+            sessionRun:
+              done &&
+              state.sessionRun?.weekIndex === weekIndex &&
+              state.sessionRun.sessionId === sessionId
+                ? null
+                : state.sessionRun,
           };
         }),
 
-      resetTrainingPlan: () => set({ trainingPlan: null, intake: null }),
+      startSessionRun: (planCreatedAt, weekIndex, session) =>
+        set((state) => {
+          const current = state.sessionRun;
+          if (current) {
+            const same =
+              current.planCreatedAt === planCreatedAt &&
+              current.weekIndex === weekIndex &&
+              current.sessionId === session.id;
+            // Reprendre la même séance ne la réinitialise pas ; une autre séance
+            // du même plan ne l'écrase pas non plus (l'interface propose de la reprendre).
+            if (same || current.planCreatedAt === state.trainingPlan?.createdAt) return {};
+          }
+          return {
+            sessionRun: {
+              planCreatedAt,
+              weekIndex,
+              sessionId: session.id,
+              startedAt: new Date().toISOString(),
+              sets: (session.exercises ?? []).map(() => 0),
+            },
+          };
+        }),
+
+      setExerciseSets: (exerciseIndex, count) =>
+        set((state) => {
+          if (!state.sessionRun) return {};
+          const sets = [...state.sessionRun.sets];
+          sets[exerciseIndex] = Math.max(0, count);
+          return { sessionRun: { ...state.sessionRun, sets } };
+        }),
+
+      startRest: (seconds, exerciseIndex) =>
+        set((state) =>
+          state.sessionRun
+            ? {
+                sessionRun: {
+                  ...state.sessionRun,
+                  restUntil: new Date(Date.now() + seconds * 1000).toISOString(),
+                  restExerciseIndex: exerciseIndex,
+                },
+              }
+            : {}
+        ),
+
+      extendRest: (seconds) =>
+        set((state) => {
+          if (!state.sessionRun) return {};
+          const until = state.sessionRun.restUntil
+            ? Math.max(Date.now(), Date.parse(state.sessionRun.restUntil))
+            : Date.now();
+          return {
+            sessionRun: {
+              ...state.sessionRun,
+              restUntil: new Date(until + seconds * 1000).toISOString(),
+            },
+          };
+        }),
+
+      clearRest: () =>
+        set((state) =>
+          state.sessionRun
+            ? {
+                sessionRun: {
+                  ...state.sessionRun,
+                  restUntil: undefined,
+                  restExerciseIndex: undefined,
+                },
+              }
+            : {}
+        ),
+
+      finishSessionRun: (durationMin) => {
+        const run = get().sessionRun;
+        if (run) {
+          get().toggleTrainingSession(run.weekIndex, run.sessionId, true, durationMin);
+        }
+        set({ sessionRun: null });
+      },
+
+      discardSessionRun: () => set({ sessionRun: null }),
+
+      resetTrainingPlan: () =>
+        set({ trainingPlan: null, intake: null, sessionRun: null, planDismissed: true }),
 
       importData: (payload, options) => {
         const state = get();
@@ -337,11 +522,12 @@ export const usePulse = create<PulseState>()(
           days: demo.days,
           chat: [],
           plan: null,
+          sessionRun: null,
         });
       },
 
       resetData: () =>
-        set({
+        set((state) => ({
           demo: false,
           workouts: [],
           sleeps: [],
@@ -350,7 +536,9 @@ export const usePulse = create<PulseState>()(
           days: {},
           chat: [],
           plan: null,
-        }),
+          sessionRun: null,
+          trainingPlan: clearPlanProgress(state.trainingPlan),
+        })),
 
       clearEverything: () =>
         set({
@@ -367,7 +555,9 @@ export const usePulse = create<PulseState>()(
           plan: null,
           trainingPlan: null,
           intake: null,
+          sessionRun: null,
           onboardingDone: false,
+          planDismissed: false,
         }),
     }),
     {
@@ -388,7 +578,9 @@ export const usePulse = create<PulseState>()(
         plan: state.plan,
         trainingPlan: state.trainingPlan,
         intake: state.intake,
+        sessionRun: state.sessionRun,
         onboardingDone: state.onboardingDone,
+        planDismissed: state.planDismissed,
       }),
       // Les états enregistrés avant l'arrivée des fournisseurs IA n'ont pas de
       // bloc `settings.ai` : on le complète au lieu de planter au premier accès.

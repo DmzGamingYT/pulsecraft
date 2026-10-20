@@ -24,10 +24,9 @@ export function Modal({ open, title, eyebrow, onClose, children, footer, size = 
     document.body.style.overflow = 'hidden';
 
     const panel = panelRef.current;
-    const focusable = panel?.querySelector<HTMLElement>(
-      'input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])'
-    );
-    focusable?.focus();
+    // On pose le focus sur le panneau, pas sur le premier bouton : le titre est
+    // annoncé, et Tab mène au premier champ au lieu de la croix de fermeture.
+    panel?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -72,6 +71,7 @@ export function Modal({ open, title, eyebrow, onClose, children, footer, size = 
         aria-modal="true"
         aria-labelledby={titleId}
         ref={panelRef}
+        tabIndex={-1}
       >
         <header className="modal__head">
           <div>

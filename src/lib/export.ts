@@ -23,6 +23,70 @@ export function buildExport(data: Omit<ExportBundle, 'app' | 'version' | 'export
   };
 }
 
+function listOf<T>(value: unknown, label: string): T[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`Sauvegarde incomplète : « ${label} » manquant.`);
+  }
+  return value as T[];
+}
+
+/**
+ * Relit une sauvegarde JSON produite par « Exporter tout ». La validation reste
+ * volontairement stricte sur l'enveloppe (app, profil, objectifs, listes) : une
+ * restauration partielle donnerait une base incohérente, plus difficile à
+ * réparer qu'un refus net.
+ */
+export function parseExport(text: string): ExportBundle {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new Error('Ce fichier n’est pas un JSON valide.');
+  }
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Ce fichier ne contient pas une sauvegarde Battement.');
+  }
+  const data = raw as Partial<ExportBundle>;
+  if (data.app !== 'Battement') {
+    throw new Error('Ce fichier ne vient pas de Battement (champ « app » absent).');
+  }
+  if (!data.profile || typeof data.profile !== 'object') {
+    throw new Error('Sauvegarde incomplète : profil manquant.');
+  }
+  if (!data.goals || typeof data.goals !== 'object') {
+    throw new Error('Sauvegarde incomplète : objectifs manquants.');
+  }
+  const days =
+    data.days && typeof data.days === 'object' && !Array.isArray(data.days)
+      ? (data.days as Record<string, DayLog>)
+      : {};
+  return {
+    app: 'Battement',
+    version: 1,
+    exportedAt:
+      typeof data.exportedAt === 'string' ? data.exportedAt : new Date().toISOString(),
+    profile: data.profile as Profile,
+    goals: data.goals as Goals,
+    workouts: listOf<Workout>(data.workouts, 'séances'),
+    sleeps: listOf<SleepEntry>(data.sleeps, 'nuits'),
+    body: listOf<BodyEntry>(data.body, 'mesures'),
+    meals: Array.isArray(data.meals) ? (data.meals as Meal[]) : [],
+    days,
+  };
+}
+
+/** Résumé lisible d'une sauvegarde, avant de la restaurer. */
+export function exportSummary(bundle: ExportBundle): string {
+  const plural = (count: number, one: string, many: string) =>
+    `${count} ${count > 1 ? many : one}`;
+  return [
+    plural(bundle.workouts.length, 'séance', 'séances'),
+    plural(bundle.sleeps.length, 'nuit', 'nuits'),
+    plural(bundle.body.length, 'mesure', 'mesures'),
+    plural(bundle.meals.length, 'repas', 'repas'),
+  ].join(' · ');
+}
+
 export function downloadFile(filename: string, content: string, type: string): void {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);

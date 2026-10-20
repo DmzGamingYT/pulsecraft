@@ -233,6 +233,8 @@ export interface PlanSession {
   id: string;
   /** 0 = lundi … 6 = dimanche */
   day: number;
+  /** Heure du créneau (« 7 h 30 »), pour les plans qui fixent l'horaire. */
+  time?: string;
   type: PlanType;
   title: string;
   minutes: number;
@@ -270,10 +272,34 @@ export interface PlanMilestone {
   detail: string;
 }
 
+/**
+ * Séance guidée en cours : séries validées, repos et heure de départ.
+ *
+ * Elle est conservée dans le stockage local : fermer l'écran ou recharger
+ * l'application ne fait pas perdre la séance, on la reprend où on s'était
+ * arrêté. Une seule séance peut être en cours à la fois.
+ */
+export interface SessionRun {
+  /** `TrainingPlan.createdAt` : invalide la reprise si le plan est remplacé. */
+  planCreatedAt: string;
+  weekIndex: number;
+  sessionId: string;
+  startedAt: string;
+  /** Séries validées, dans l'ordre des exercices de la séance. */
+  sets: number[];
+  /** Fin du repos en cours (ISO). Absent quand aucun repos ne tourne. */
+  restUntil?: string;
+  restExerciseIndex?: number;
+}
+
 export interface TrainingPlan {
   createdAt: string;
   horizonWeeks: number;
   goal: GoalKind;
+  /** Programme pré-écrit (le programme du mois) plutôt qu'issu du bilan. */
+  preset?: 'monthly-muscle';
+  /** Rang du mois dans l'enchaînement, 0 pour le premier mois. */
+  monthIndex?: number;
   intake: PlanIntake;
   phases: PlanPhase[];
   weeks: PlanWeek[];

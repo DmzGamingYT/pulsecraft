@@ -141,7 +141,7 @@ export function LineChart({
 
         {lastValue !== null && lastValue !== undefined && Number.isFinite(lastValue) ? (
           <circle
-            cx={x(points.length - 1)}
+            cx={x(lastIndex)}
             cy={y(lastValue)}
             r="4.2"
             fill={color}

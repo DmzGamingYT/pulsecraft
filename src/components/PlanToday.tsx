@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { usePulse } from '../store';
 import { useUi } from '../lib/uiStore';
 import { GOALS, nextSession, planPhaseFor, planStats, sessionForDate, weekIndexFor } from '../lib/plan';
+import { isMonthOver, isMonthlyProgram } from '../lib/monthly';
 import { formatWeekday, todayISO } from '../lib/dates';
 import type { PlanSession } from '../types';
 import { Icon } from './Icon';
@@ -34,8 +35,11 @@ function iconFor(type: PlanSession['type']) {
 export function PlanToday() {
   const plan = usePulse((state) => state.trainingPlan);
   const toggle = usePulse((state) => state.toggleTrainingSession);
+  const roll = usePulse((state) => state.rollMonthlyProgram);
+  const run = usePulse((state) => state.sessionRun);
   const notify = useUi((state) => state.notify);
   const openWizard = useUi((state) => state.openWizard);
+  const openRun = useUi((state) => state.openRun);
   const [sheet, setSheet] = useState<{ weekIndex: number; id: string } | null>(null);
 
   if (!plan) {
@@ -79,13 +83,63 @@ export function PlanToday() {
   const todaySession = sessionForDate(plan, today);
   const upcoming = todaySession ? null : nextSession(plan, today);
   const session = todaySession ?? upcoming?.session ?? null;
-  if (!session) return null;
+
+  // Le programme du mois terminé ne laisse aucune séance à venir : on propose
+  // directement le bloc suivant, sans obliger à passer par l'écran Plan.
+  if (!session) {
+    if (!isMonthlyProgram(plan) || !isMonthOver(plan, today)) return null;
+    const monthNumber = (plan.monthIndex ?? 0) + 1;
+    return (
+      <section className="card pt pt--empty">
+        <div className="pt__head">
+          <span className="pt__kicker">
+            <Icon name="target" size={15} /> Programme du mois
+          </span>
+          <Link to="/plan" className="textlink">
+            Le plan <Icon name="arrow" size={15} />
+          </Link>
+        </div>
+        <div className="pt__body">
+          <span className="pt__icon is-done">
+            <Icon name="check" size={24} />
+          </span>
+          <div className="pt__text">
+            <h2>Mois {monthNumber} terminé.</h2>
+            <p>
+              Le mois suivant reprend le même rythme, avec une variante plus difficile sur chaque
+              mouvement. Le journal garde les séances déjà cochées.
+            </p>
+          </div>
+          <div className="pt__actions">
+            <button
+              type="button"
+              className="btn btn--primary btn--small"
+              onClick={() => {
+                roll();
+                notify(`Mois ${monthNumber + 1} installé, variantes plus difficiles.`, 'success');
+              }}
+            >
+              <Icon name="arrow" size={15} /> Enchaîner le mois {monthNumber + 1}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const phase = weekIndex === null ? plan.phases[0] : planPhaseFor(plan, weekIndex);
   const stats = planStats(plan, today);
   const goal = GOALS[plan.goal];
   const done = Boolean(session.doneAt);
   const isToday = Boolean(todaySession);
+  const sessionWeek = isToday ? weekIndex : upcoming ? upcoming.weekIndex : null;
+  const runMatches = Boolean(
+    run &&
+      sessionWeek !== null &&
+      run.planCreatedAt === plan.createdAt &&
+      run.weekIndex === sessionWeek &&
+      run.sessionId === session.id
+  );
   const sheetSession = sheet
     ? plan.weeks[sheet.weekIndex]?.sessions.find((item) => item.id === sheet.id) ?? null
     : null;
@@ -96,7 +150,8 @@ export function PlanToday() {
         <span className="pt__kicker">
           <Icon name="target" size={15} />
           {isToday ? 'Séance du jour' : 'Prochaine séance'}
-          {phase ? <em>{phase.name}</em> : null}
+          {runMatches ? <em>En cours</em> : null}
+          {!runMatches && phase ? <em>{phase.name}</em> : null}
         </span>
         <Link to="/plan" className="textlink">
           Le plan <Icon name="arrow" size={15} />
@@ -113,7 +168,8 @@ export function PlanToday() {
             {isToday
               ? "Aujourd'hui"
               : formatWeekday(upcoming ? upcoming.date : today)}{' '}
-            · {session.minutes} min · intensité {INTENSITY[session.intensity]} · {goal.label.toLowerCase()}
+            {session.time ? `· ${session.time} ` : ''}· {session.minutes} min · intensité{' '}
+            {INTENSITY[session.intensity]} · {goal.label.toLowerCase()}
           </p>
           <span className="pt__detail">{session.detail}</span>
           {session.exercises?.length ? (
@@ -135,7 +191,11 @@ export function PlanToday() {
           >
             <Icon name="strength" size={15} /> Voir la séance
           </button>
-          {isToday || upcoming ? (
+          {runMatches ? (
+            <button type="button" className="btn btn--primary btn--small" onClick={openRun}>
+              <Icon name="run" size={15} /> Reprendre
+            </button>
+          ) : isToday || upcoming ? (
             <button
               type="button"
               className={`btn btn--small ${done ? 'btn--ghost' : 'btn--primary'}`}

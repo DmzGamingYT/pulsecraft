@@ -22,8 +22,8 @@ il n'y a ni compte, ni abonnement, ni télémétrie.
 
 | Écran | Contenu |
 | --- | --- |
-| **Aujourd'hui** | Anneaux (bouger, entraînement, hydratation), forme du jour, séance prévue par le plan, pas, sommeil, poids, briefing du coach, séances du jour |
-| **Plan** | Programme long terme : phases, semaines allégées, séances cochables, repères, régularité |
+| **Aujourd'hui** | Anneaux (bouger, entraînement, hydratation), forme du jour, séance prévue par le plan (reprise d'une séance guidée incluse), pas, sommeil, poids, briefing du coach, séances du jour |
+| **Plan** | Programme long terme : phases, semaines allégées, séances cochables et détaillées (mouvements, séries, repos), repères, régularité — et le programme du mois avec ses créneaux horaires |
 | **Activité** | Journal d'entraînement, charge aiguë/chronique sur 14 jours, répartition par discipline, séance détaillée |
 | **Sommeil** | Durée, stades, score, dette de sommeil, régularité du coucher, tendance |
 | **Corps** | Poids, composition, IMC, VO₂ max estimé, tendances de fond |
@@ -54,7 +54,61 @@ Il en sort un **plan de 4 à 24 semaines** :
 - une semaine allégée toutes les quatre semaines ;
 - volume hebdomadaire qui monte d'au plus ~15 % sur un bloc ;
 - des repères mesurables à ~25 %, 50 % et 100 % du plan ;
-- des séances cochables qui s'ajoutent au journal (et se retirent si on décoche).
+- des séances cochables qui s'ajoutent au journal (et se retirent si on décoche) ;
+- des séances de renforcement détaillées, adaptées au matériel déclaré : au poids
+  du corps (dips sur banc, entre deux chaises ou aux barres, pompes, rowing sous
+  table), à la maison (haltères, élastiques) ou en salle. Le niveau choisit la
+  variante, la semaine ajuste les séries, et la semaine allégée en retire une.
+
+Un plan démarré en semaine place une première séance **le jour même**, sans
+attendre le lundi suivant, puis reprend le rythme hebdomadaire.
+
+### Programme du mois
+
+Quand aucun plan n'existe encore, Battement installe tout seul un **programme du
+mois** de quatre semaines, pensé pour une semaine d'atelier informatique de
+14 h à 18 h suivie d'études, avec **poids du corps et haltères légers** :
+
+| Jour | Créneau | Séance |
+| --- | --- | --- |
+| lundi | 7 h 30, avant l'atelier | Haut du corps · poussée & tirage |
+| mercredi | 7 h 30, avant l'atelier | Bas du corps · squat & fentes |
+| vendredi | 19 h, après l'atelier | Haut du corps · épaules & bras |
+| dimanche | 10 h | Corps complet & gainage |
+
+Aucune séance ne tombe entre 14 h et 18 h. Chaque bloc tient en 40 min, avec
+5 min d'échauffement ; les séries montent en semaine 2 et 3, la semaine 4 est
+allégée. Comme les haltères sont légers, la progression passe par les
+répétitions, le tempo lent, les variantes unilatérales et les séries proches de
+l'échec technique — jamais un poids inventé.
+
+À la fin du bloc, la fiche du mois propose d'**enchaîner le mois suivant** : même
+rythme, variantes plus difficiles, nouveau bloc de quatre semaines. Le journal et
+les séances cochées restent en place. Le bilan complet ou **Ajuster** remplace ce
+programme par un plan calculé sur les réponses — la fiche le signale avant
+d'appliquer.
+
+Le plan s'ajuste ensuite depuis **Plan → Ajuster** (objectif, matériel, niveau,
+séances par semaine, durée de base) sans refaire tout le bilan. Le calendrier et
+les séances déjà cochées sont conservés : seules les séances à venir sont
+recalculées, et le journal n'est jamais modifié. Le bilan complet reste
+accessible depuis cette fiche ou depuis les réglages.
+
+### Séance guidée
+
+Depuis la fiche d'une séance, **Démarrer la séance** ouvre un mode guidé :
+
+- les séries se cochent une à une, avec un repos décompté automatiquement
+  (bouton +15 s, bouton Passer) ;
+- le chrono, la progression et l'exercice en cours restent visibles ;
+- **Mettre en pause** ferme l'écran sans perdre la séance : un bandeau
+  « Séance en cours » sur Aujourd'hui et un bouton Reprendre dans le plan
+  permettent de continuer, même après un rechargement de l'application ;
+- **Terminer la séance** ajoute la séance au journal avec la durée réelle, et
+  pas seulement la durée prévue.
+
+Une seule séance guidée peut être en cours à la fois ; démarrer une autre séance
+propose d'abord de reprendre celle qui est ouverte.
 
 Le plan est **calculé localement**, jamais généré par le modèle : une séance
 inventée ne peut donc pas se retrouver dans votre programme. L'IA ne rédige que
@@ -66,6 +120,9 @@ reste sur l'appareil et n'entre dans aucun prompt.
 - **Apple Health** : `export.xml` (ou l'archive `.zip`)
 - **Samsung Health** : export CSV (pas, sommeil, poids, exercices)
 - **GPX / TCX** : sorties GPS et séances
+- **Sauvegarde Battement** : le JSON produit par « Exporter tout », relu après
+  confirmation — le journal est remplacé, le plan d'entraînement et les réglages
+  restent en place.
 
 Les fichiers sont lus dans le navigateur ; rien n'est téléversé.
 
@@ -139,6 +196,9 @@ src/
     idbStorage.ts      persistance IndexedDB
   components/
     Onboarding.tsx     bilan de démarrage en six étapes
+    PlanAdjust.tsx     ajustement du plan sans refaire le bilan
+    SessionSheet.tsx   fiche de séance (mouvements, séries, repos)
+    SessionRun.tsx     séance guidée (séries, repos, reprise)
     AppIcon.tsx        icône 3D en verre liquide (SVG animé)
   pages/Plan.tsx       programme long terme
   store.ts             état applicatif (zustand)

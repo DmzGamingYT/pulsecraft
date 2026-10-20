@@ -114,6 +114,10 @@ export function NutritionPage() {
             <MacroRow label="Glucides" value={nutrition.carbs} target={carbsTarget} color="var(--cyan)" />
             <MacroRow label="Lipides" value={nutrition.fat} target={fatTarget} color="var(--amber)" />
           </div>
+          <p className="energy__note">
+            Répartition par défaut : 30 % protéines · 45 % glucides · 25 % lipides, appliquée à
+            l’objectif de {fmtNumber(goal)} kcal.
+          </p>
         </SectionCard>
 
         <SectionCard

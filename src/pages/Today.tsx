@@ -18,6 +18,8 @@ import { Icon } from '../components/Icon';
 import { WorkoutRow } from '../components/WorkoutRow';
 import { WorkoutModal, SleepModal, BodyModal, MealModal } from '../components/Forms';
 import { PlanToday } from '../components/PlanToday';
+import { sessionForDate } from '../lib/plan';
+import { ResumeSessionCard } from '../components/SessionRun';
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -51,9 +53,15 @@ export function TodayPage() {
   const firstName =
     data.profile.name && data.profile.name !== 'Vous' ? data.profile.name.split(/\s+/)[0] : '';
 
+  const planSession = data.trainingPlan ? sessionForDate(data.trainingPlan, today) : null;
+
   const subtitle =
     data.workouts.length === 0 && data.sleeps.length === 0
-      ? 'Votre journal est prêt. Ajoutez une première séance ou importez votre historique.'
+      ? data.trainingPlan
+        ? planSession
+          ? 'Votre programme est prêt : la séance du jour vous attend, avec ses mouvements et ses séries.'
+          : 'Votre programme est prêt : la prochaine séance apparaît ci-dessous, avec ses mouvements et ses séries.'
+        : 'Votre journal est prêt. Ajoutez une première séance ou importez votre historique.'
       : score === null
         ? 'Encore quelques données et votre forme du jour sera calculée.'
         : `Forme à ${score}/100 — ${readiness.label.toLowerCase()}. ${
@@ -87,6 +95,9 @@ export function TodayPage() {
           </>
         }
       />
+
+      <ResumeSessionCard />
+      <PlanToday />
 
       <div className="today-grid">
         <SectionCard
@@ -197,8 +208,6 @@ export function TodayPage() {
           )}
         </section>
       </div>
-
-      <PlanToday />
 
       <section className="card briefing">
         <header className="card__head briefing__head">

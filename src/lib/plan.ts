@@ -949,6 +949,8 @@ export interface PlanOptions {
   noteSource?: 'ai' | 'local';
   /** Place une séance aujourd’hui quand le bilan est fait en semaine. */
   startToday?: boolean;
+  /** Lundi de la première semaine, pour recalculer un plan sans le décaler. */
+  startDate?: ISODate;
 }
 
 export function buildPlan(intake: PlanIntake, options: PlanOptions = {}): TrainingPlan {
@@ -966,7 +968,8 @@ export function buildPlan(intake: PlanIntake, options: PlanOptions = {}): Traini
   // Un plan démarré un samedi ou un dimanche commencerait avec une semaine déjà
   // entamée : on cale alors la première semaine sur le lundi suivant.
   const weekday = (new Date(`${today}T00:00:00`).getDay() + 6) % 7;
-  const firstMonday = addDays(startOfWeek(today), weekday >= 5 ? 7 : 0);
+  const firstMonday =
+    options.startDate ?? addDays(startOfWeek(today), weekday >= 5 ? 7 : 0);
   const weeks: PlanWeek[] = [];
 
   for (let weekIndex = 0; weekIndex < horizonWeeks; weekIndex += 1) {
@@ -1002,6 +1005,68 @@ export function buildPlan(intake: PlanIntake, options: PlanOptions = {}): Traini
     milestones: buildMilestones(intake.goal, horizonWeeks, intake),
     note: options.note ?? localPlanNote(intake),
     noteSource: options.noteSource ?? 'local',
+  };
+}
+
+/**
+ * Recalcule un plan existant avec de nouveaux choix (objectif, matériel,
+ * fréquence, durée) sans repartir de zéro : le calendrier d'origine est
+ * conservé, et chaque séance déjà cochée le reste à la même date. Un plan
+ * arrivé à son terme repart de la semaine en cours, sinon il serait impossible
+ * de le modifier.
+ */
+export function rebuildPlan(
+  plan: TrainingPlan,
+  intake: PlanIntake,
+  options: PlanOptions = {}
+): TrainingPlan {
+  const today = options.today ?? todayISO();
+  const base: PlanOptions = {
+    today,
+    ...options,
+    note: options.note ?? localPlanNote(intake),
+    noteSource: options.noteSource ?? 'local',
+  };
+  const startDate = plan.weeks[0]?.startDate;
+  const currentIndex = weekIndexFor(plan, today);
+  let next = buildPlan(intake, startDate ? { ...base, startDate } : base);
+  if (startDate && weekIndexFor(next, today) === null) next = buildPlan(intake, base);
+
+  // Les dates des séances déjà cochées, pour les retrouver dans le nouveau plan.
+  const doneAt = new Map<string, string>();
+  for (const week of plan.weeks) {
+    for (const session of week.sessions) {
+      if (session.doneAt) doneAt.set(addDays(week.startDate, session.day), session.doneAt);
+    }
+  }
+
+  // Le calendrier n'a pas bougé : les semaines passées restent telles quelles, et
+  // une séance faite un jour qui disparaît de la nouvelle fréquence est gardée
+  // dans la semaine en cours (marquée faite) plutôt que d'être effacée du plan.
+  const keepHistory = currentIndex !== null && next.weeks[0]?.startDate === startDate;
+
+  return {
+    ...next,
+    weeks: next.weeks.map((week, index) => {
+      const old = plan.weeks.find((item) => item.startDate === week.startDate);
+      if (keepHistory && index < currentIndex && old) return old;
+
+      const sessions = week.sessions.map((session) => {
+        const at = doneAt.get(addDays(week.startDate, session.day));
+        return at ? { ...session, doneAt: at } : session;
+      });
+
+      if (keepHistory && index === currentIndex && old) {
+        const covered = new Set(sessions.map((session) => session.day));
+        for (const session of old.sessions) {
+          if (!session.doneAt || covered.has(session.day)) continue;
+          sessions.push({ ...session, id: `${session.id}_done` });
+        }
+        sessions.sort((a, b) => a.day - b.day);
+      }
+
+      return { ...week, sessions };
+    }),
   };
 }
 

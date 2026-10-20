@@ -214,7 +214,7 @@ export function SleepPage() {
           </div>
 
           <div className="stats-grid stats-grid--three">
-            <StatTile label="Moyenne 14 nuits" value={fmtSleep(stats.avgMin).hours} unit={`h ${fmtSleep(stats.avgMin).minutes}`} icon="moon" tone="var(--violet)" detail={`${stats.nights} nuits`} />
+            <StatTile label="Moyenne 14 nuits" value={fmtSleep(stats.avgMin).hours} unit={`h ${fmtSleep(stats.avgMin).minutes}`} icon="moon" tone="var(--violet)" detail={`objectif ${data.goals.sleepHours} h`} />
             <StatTile label="Dette de sommeil" value={stats.debtHours.toFixed(1).replace('.', ',')} unit="h" icon="alert" tone="var(--amber)" detail="sur les 7 dernières nuits" />
             <StatTile label="Régularité" value={stats.consistency || '—'} unit={stats.consistency ? '/100' : undefined} icon="clock" tone="var(--cyan)" detail="heure de coucher" />
           </div>

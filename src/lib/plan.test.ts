@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanIntake } from '../types';
+import { addDays } from './dates';
 import {
   buildPlan,
   nextSession,
   planPromptContext,
   planStats,
+  rebuildPlan,
   sessionForDate,
   togglePlanSession,
   weekIndexFor,
@@ -181,6 +183,85 @@ describe('plan long terme', () => {
     expect(first).toBeDefined();
     expect(deload).toBeDefined();
     expect(deload!.sets).toBeLessThan(first!.sets);
+  });
+
+  it('ajuste le plan sans décaler le calendrier ni perdre les séances cochées', () => {
+    const base = buildPlan(
+      intake({ goal: 'force', experience: 'intermediaire', equipment: 'aucun' }),
+      { today }
+    );
+    const session = base.weeks[0]!.sessions[0]!;
+    const done = togglePlanSession(base, 0, session.id, true);
+    const adjusted = rebuildPlan(done, { ...done.intake, equipment: 'salle' }, { today });
+
+    expect(adjusted.weeks[0]!.startDate).toBe(base.weeks[0]!.startDate);
+    expect(adjusted.intake.equipment).toBe('salle');
+    expect(adjusted.weeks[0]!.sessions.find((item) => item.day === session.day)?.doneAt).toBeTruthy();
+    expect(planStats(adjusted, today).done).toBe(1);
+    const names = adjusted.weeks[0]!.sessions
+      .flatMap((item) => item.exercises ?? [])
+      .map((exercise) => exercise.name);
+    expect(names.some((name) => name.includes('Dips'))).toBe(true);
+  });
+
+  it('garde les semaines passées intactes et n’applique le matériel qu’aux séances à venir', () => {
+    const start = '2026-04-20';
+    const now = '2026-05-04';
+    const base = buildPlan(
+      intake({ goal: 'force', experience: 'intermediaire', equipment: 'aucun' }),
+      { today: start }
+    );
+    const done = togglePlanSession(base, 0, base.weeks[0]!.sessions[0]!.id, true);
+    const adjusted = rebuildPlan(done, { ...done.intake, equipment: 'salle' }, { today: now });
+
+    expect(adjusted.weeks[0]!.startDate).toBe(start);
+    expect(weekIndexFor(adjusted, now)).toBe(2);
+    expect(adjusted.weeks[0]!.sessions[0]!.doneAt).toBeTruthy();
+    const pastNames = adjusted.weeks[0]!.sessions
+      .flatMap((session) => session.exercises ?? [])
+      .map((exercise) => exercise.name);
+    const futureNames = adjusted.weeks[2]!.sessions
+      .flatMap((session) => session.exercises ?? [])
+      .map((exercise) => exercise.name);
+    expect(pastNames).toContain('Dips entre deux chaises');
+    expect(futureNames).toContain('Dips aux barres');
+  });
+
+  it('garde une séance cochée même si la nouvelle fréquence l’exclut', () => {
+    const base = buildPlan(intake({ goal: 'force', daysPerWeek: 3 }), { today });
+    const done = togglePlanSession(base, 0, base.weeks[0]!.sessions[0]!.id, true);
+    const adjusted = rebuildPlan(done, { ...done.intake, daysPerWeek: 2 }, { today });
+
+    const planned = adjusted.weeks[0]!.sessions.filter((session) => !session.id.endsWith('_done'));
+    const kept = adjusted.weeks[0]!.sessions.filter((session) => session.id.endsWith('_done'));
+    expect(planned).toHaveLength(2);
+    expect(kept).toHaveLength(1);
+    expect(kept[0]?.doneAt).toBeTruthy();
+    expect(planStats(adjusted, today).done).toBe(1);
+  });
+
+  it('applique une nouvelle fréquence et une nouvelle durée', () => {
+    const base = buildPlan(intake({ goal: 'force', daysPerWeek: 3, sessionMin: 45 }), { today });
+    const adjusted = rebuildPlan(
+      base,
+      { ...base.intake, daysPerWeek: 5, sessionMin: 30 },
+      { today }
+    );
+    expect(adjusted.weeks[0]!.sessions).toHaveLength(5);
+    expect(adjusted.weeks[0]!.sessions.every((session) => session.minutes >= 20)).toBe(true);
+    expect(adjusted.intake.sessionMin).toBe(30);
+    expect(adjusted.intake.daysPerWeek).toBe(5);
+  });
+
+  it('repart de la semaine en cours quand le plan est terminé', () => {
+    const base = buildPlan(intake({ targetDate: '2026-06-01' }), { today });
+    const finished = {
+      ...base,
+      weeks: base.weeks.map((week) => ({ ...week, startDate: addDays(week.startDate, -56) })),
+    };
+    const adjusted = rebuildPlan(finished, { ...finished.intake, goal: 'force' }, { today });
+    expect(adjusted.weeks[0]!.startDate).toBe(today);
+    expect(weekIndexFor(adjusted, today)).toBe(0);
   });
 
   it('n’envoie jamais la note libre dans le contexte IA', () => {

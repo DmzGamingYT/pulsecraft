@@ -90,7 +90,7 @@ export function BodyPage() {
         }
         subtitle={
           metrics.latest
-            ? `Dernière mesure ${relativeDay(metrics.latest.date)} · ${fmtDecimal(metrics.weight)} kg`
+            ? `Dernière mesure ${relativeDay(metrics.latest.date).toLowerCase()} · ${fmtDecimal(metrics.weight)} kg`
             : 'Suivez votre poids et vos mesures sans jugement, pour voir la tendance de fond.'
         }
         actions={
@@ -117,7 +117,7 @@ export function BodyPage() {
         />
         <StatTile
           label="IMC"
-          value={metrics.bmi || '—'}
+          value={metrics.bmi ? fmtDecimal(metrics.bmi) : '—'}
           icon="target"
           tone="var(--brand)"
           detail={metrics.bmiLabel}
@@ -136,7 +136,7 @@ export function BodyPage() {
           unit={metrics.latest?.muscleKg ? 'kg' : undefined}
           icon="strength"
           tone="var(--violet)"
-          detail={metrics.latest?.waistCm ? `taille ${fmtDecimal(metrics.latest.waistCm)} cm` : 'non renseignée'}
+          detail={metrics.latest?.muscleKg ? 'dernière mesure' : 'non renseignée'}
         />
       </div>
 
@@ -245,7 +245,7 @@ export function BodyPage() {
           IMC calculé avec {fmtDecimal(data.profile.heightCm)} cm. L’IMC est un repère populationnel,
           pas un diagnostic : il ne distingue pas masse musculaire et masse grasse.
           {' '}
-          {metrics.bmi ? `Dernier indice : ${metrics.bmi} (${metrics.bmiLabel}).` : ''}
+          {metrics.bmi ? `Dernier indice : ${fmtDecimal(metrics.bmi)} (${metrics.bmiLabel}).` : ''}
           {metrics.latest?.waistCm ? ` Tour de taille : ${fmtDecimal(metrics.latest.waistCm)} cm.` : ''}
         </p>
       ) : (
