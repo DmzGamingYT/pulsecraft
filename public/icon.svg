@@ -1,61 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Battement">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Battement">
+  <title>Battement</title>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1b2b22"/>
-      <stop offset="0.5" stop-color="#0a1210"/>
-      <stop offset="1" stop-color="#040806"/>
+    <linearGradient id="bt-tile" x1="0.12" y1="0" x2="0.88" y2="1">
+      <stop offset="0" stop-color="#dcff7a"/>
+      <stop offset="0.52" stop-color="#c9ff3d"/>
+      <stop offset="1" stop-color="#a3dd21"/>
     </linearGradient>
-    <radialGradient id="sphere" cx="0.32" cy="0.26" r="0.85">
-      <stop offset="0" stop-color="#f6ffdc" stop-opacity="0.95"/>
-      <stop offset="0.32" stop-color="#c9ff3d" stop-opacity="0.9"/>
-      <stop offset="0.66" stop-color="#3fd8b4" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#0b6b60" stop-opacity="0.22"/>
-    </radialGradient>
-    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#eaffb0"/>
-      <stop offset="0.45" stop-color="#c9ff3d"/>
-      <stop offset="1" stop-color="#2bb598"/>
-    </linearGradient>
-    <radialGradient id="core" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#ffe3e9"/>
-      <stop offset="0.42" stop-color="#ff4d6d"/>
-      <stop offset="1" stop-color="#ff4d6d" stop-opacity="0.05"/>
-    </radialGradient>
-    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.6"/>
-      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.05"/>
-      <stop offset="1" stop-color="#c9ff3d" stop-opacity="0.3"/>
-    </linearGradient>
-    <linearGradient id="spec" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.75"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="bt-sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.24"/>
+      <stop offset="0.46" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#bt-tile)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#bt-sheen)"/>
 
-  <!-- halo diffus -->
-  <ellipse cx="256" cy="330" rx="210" ry="160" fill="#c9ff3d" opacity="0.14"/>
-
-  <!-- anneau de pouls, en verre -->
-  <circle cx="256" cy="256" r="168" fill="none" stroke="url(#ring)" stroke-width="26" opacity="0.5"/>
-  <circle cx="256" cy="256" r="168" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.3"/>
-
-  <!-- sphère de verre -->
-  <circle cx="256" cy="248" r="150" fill="url(#sphere)" opacity="0.96"/>
-  <ellipse cx="318" cy="314" rx="92" ry="80" fill="#38d9ff" opacity="0.18"/>
-  <ellipse cx="230" cy="186" rx="74" ry="58" fill="#ffffff" opacity="0.2"/>
-  <circle cx="352" cy="330" r="66" fill="url(#core)"/>
-
-  <!-- trait de pouls -->
-  <path d="M116 262h60l26-84 44 164 36-190 30 110h84" fill="none" stroke="#07120e" stroke-opacity="0.4" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 8)"/>
-  <path d="M116 262h60l26-84 44 164 36-190 30 110h84" fill="none" stroke="#f7ffee" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <!-- reflets spéculaires -->
-  <path d="M150 118c34-30 78-46 126-46 44 0 84 12 116 34" fill="none" stroke="url(#spec)" stroke-width="14" stroke-linecap="round"/>
-  <ellipse cx="188" cy="146" rx="42" ry="20" fill="#ffffff" opacity="0.28" transform="rotate(-26 188 146)"/>
-
-  <!-- lumière de bord et ombre -->
-  <rect x="1.5" y="1.5" width="509" height="509" rx="117" fill="none" stroke="url(#rim)" stroke-width="3"/>
-  <ellipse cx="256" cy="474" rx="150" ry="22" fill="#000000" opacity="0.25"/>
+  <!-- une ligne de pouls, large et franche : lisible même à 16 px -->
+  <path
+    d="M196 522h170l64-142 88 300 78-358 66 200h166"
+    fill="none"
+    stroke="#0c0c0d"
+    stroke-width="76"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>
