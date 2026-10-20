@@ -25,7 +25,7 @@ export async function initCore(): Promise<CoreStatus> {
     await init({ module_or_path: wasmUrl });
     status = 'wasm';
   } catch (error) {
-    console.warn('[PulseCraft] Noyau WASM indisponible, repli JavaScript actif.', error);
+    console.warn('[Battement] Noyau WASM indisponible, repli JavaScript actif.', error);
     status = 'js';
   }
   return status;

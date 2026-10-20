@@ -48,7 +48,7 @@ describe('import Apple Health', () => {
     });
   });
 
-  it('convertit une séance Apple en séance PulseCraft', () => {
+  it('convertit une séance Apple en séance Battement', () => {
     const parser = new AppleHealthParser();
     parser.feed(XML);
     const workout = parser.finish().workouts?.[0];

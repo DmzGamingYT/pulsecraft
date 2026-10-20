@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import { aiProxyPlugin } from './server/aiProxy.ts';
 
 /**
- * PulseCraft tourne sur le port 5186 : 5183 = TubeCraft, 5184 = SpotifyCraft,
- * 5185 = la vitrine « L'Atelier ».
+ * Battement tourne sur le port 5186 : 5183 = Séquence, 5184 = Portée,
+ * 5185 = la vitrine Craftline.
  *
  * `base: './'` garde le build portable (GitHub Pages de projet, dépôt statique,
  * sous-dossier) : le routeur lit `import.meta.env.BASE_URL`.

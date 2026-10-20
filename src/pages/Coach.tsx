@@ -284,7 +284,7 @@ export function CoachPage() {
           <p className="composer__note">
             <Icon name="heart" size={13} />
             Douleur, malaise, trouble alimentaire : consultez un professionnel de santé. Le coach
-            PulseCraft reste un outil de suivi, pas un avis médical.
+            Battement reste un outil de suivi, pas un avis médical.
           </p>
         </section>
 

@@ -71,9 +71,11 @@ function DemoBanner() {
   if (!demo) return null;
   return (
     <div className="demobanner" role="status">
-      <span className="demobanner__dot" aria-hidden />
+      <span className="demobanner__badge" aria-hidden>
+        <Icon name="spark" size={14} />
+      </span>
       <p>
-        <strong>Données d’exemple.</strong> Rien ici n’est réel. Importez votre historique ou
+        <strong>Données d’exemple.</strong> Rien ici n’est réel — importez votre historique ou
         commencez à zéro.
       </p>
       <div className="demobanner__actions">
@@ -82,7 +84,7 @@ function DemoBanner() {
         </Link>
         <button
           type="button"
-          className="demobanner__link"
+          className="demobanner__link demobanner__link--quiet"
           onClick={() => {
             resetData();
             notify('Données d’exemple effacées.', 'info');
@@ -148,7 +150,7 @@ export function Layout() {
             <AppIcon size={36} animated={false} />
           </span>
           <span className="brand__text">
-            <strong>PulseCraft</strong>
+            <strong>Battement</strong>
             <em>santé locale</em>
           </span>
         </Link>
@@ -191,9 +193,9 @@ export function Layout() {
 
       <div className="app__body">
         <header className="mobiletop">
-          <Link to="/" className="mobiletop__brand" aria-label="PulseCraft, accueil">
+          <Link to="/" className="mobiletop__brand" aria-label="Battement, accueil">
             <AppIcon size={30} animated={false} />
-            <strong>PulseCraft</strong>
+            <strong>Battement</strong>
           </Link>
           <div className="mobiletop__actions">
             <button type="button" className="iconbtn" onClick={toggleTheme} aria-label="Changer de thème">

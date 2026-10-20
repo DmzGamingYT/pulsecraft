@@ -17,22 +17,22 @@ import { PlanPage } from './pages/Plan';
 import { SettingsPage } from './pages/Settings';
 
 const TITLES: Record<string, string> = {
-  '/': "Aujourd'hui — PulseCraft",
-  '/activite': 'Activité — PulseCraft',
-  '/sommeil': 'Sommeil — PulseCraft',
-  '/corps': 'Corps — PulseCraft',
-  '/nutrition': 'Nutrition — PulseCraft',
-  '/coach': 'Coach IA — PulseCraft',
-  '/plan': 'Plan long terme — PulseCraft',
-  '/progres': 'Progrès — PulseCraft',
-  '/reglages': 'Réglages — PulseCraft',
+  '/': "Aujourd'hui — Battement",
+  '/activite': 'Activité — Battement',
+  '/sommeil': 'Sommeil — Battement',
+  '/corps': 'Corps — Battement',
+  '/nutrition': 'Nutrition — Battement',
+  '/coach': 'Coach IA — Battement',
+  '/plan': 'Plan long terme — Battement',
+  '/progres': 'Progrès — Battement',
+  '/reglages': 'Réglages — Battement',
 };
 
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-    document.title = TITLES[pathname] ?? 'PulseCraft';
+    document.title = TITLES[pathname] ?? 'Battement';
   }, [pathname]);
   return null;
 }
@@ -41,7 +41,7 @@ function Splash() {
   return (
     <div className="splash" role="status" aria-live="polite">
       <AppIcon size={84} />
-      <p className="splash__name">PulseCraft</p>
+      <p className="splash__name">Battement</p>
       <p className="splash__text">Ouverture de votre journal local…</p>
       <span className="splash__bar" aria-hidden>
         <i />

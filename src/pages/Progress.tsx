@@ -12,7 +12,7 @@ import {
   type DataSlice,
   type SeriesPoint,
 } from '../lib/analytics';
-import { addDays, todayISO } from '../lib/dates';
+import { addDays, formatMedium, todayISO } from '../lib/dates';
 import { fmtDecimal, fmtMinutes, fmtNumber } from '../lib/format';
 import { buildExport, downloadFile, exportDate, workoutsCsv } from '../lib/export';
 import { PageHeader, SectionCard, StatTile, EmptyState } from '../components/Page';
@@ -59,7 +59,7 @@ export function ProgressPage() {
       days: data.days,
     });
     downloadFile(
-      `pulsecraft-${exportDate()}.json`,
+      `battement-${exportDate()}.json`,
       JSON.stringify(bundle, null, 2),
       'application/json'
     );
@@ -71,7 +71,7 @@ export function ProgressPage() {
       notify('Aucune séance à exporter.', 'error');
       return;
     }
-    downloadFile(`pulsecraft-seances-${exportDate()}.csv`, workoutsCsv(data.workouts), 'text/csv');
+    downloadFile(`battement-seances-${exportDate()}.csv`, workoutsCsv(data.workouts), 'text/csv');
     notify('Export CSV téléchargé.', 'success');
   };
 
@@ -146,6 +146,8 @@ export function ProgressPage() {
                 formatValue={(value) => `${fmtNumber(value)} pts`}
                 label={`Charge hebdomadaire sur ${weeks} semaines`}
                 emptyLabel="Aucune charge sur la période"
+                tickFormat={formatMedium}
+                tickEvery={weeks > 12 ? 4 : 2}
               />
             </SectionCard>
 

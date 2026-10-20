@@ -38,7 +38,7 @@ export function AppIcon({
       height={size}
       viewBox="0 0 512 512"
       role="img"
-      aria-label="PulseCraft"
+      aria-label="Battement"
     >
       <defs>
         <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">

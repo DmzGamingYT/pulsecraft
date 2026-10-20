@@ -2,7 +2,7 @@
 name = "pulse-core"
 version = "0.1.0"
 edition = "2021"
-description = "Noyau de calcul santé et entraînement de PulseCraft (Rust → WebAssembly)"
+description = "Noyau de calcul santé et entraînement de Battement (Rust → WebAssembly)"
 license = "MIT"
 repository = "https://github.com/DmzGamingYT/pulsecraft"
 

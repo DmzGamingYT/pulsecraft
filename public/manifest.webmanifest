@@ -1,6 +1,6 @@
 {
-  "name": "PulseCraft",
-  "short_name": "PulseCraft",
+  "name": "Battement",
+  "short_name": "Battement",
   "description": "Suivi sportif et santé local-first, avec coach IA.",
   "lang": "fr",
   "start_url": "./",

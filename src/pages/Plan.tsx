@@ -3,13 +3,14 @@ import { usePulse } from '../store';
 import { useUi } from '../lib/uiStore';
 import { fetchPlanNarrative } from '../lib/ai';
 import { aiReady } from '../lib/llm';
-import { GOALS, planPhaseFor, planStats, weekIndexFor } from '../lib/plan';
+import { EQUIPMENT_LABELS, GOALS, planPhaseFor, planStats, weekIndexFor } from '../lib/plan';
 import { addDays, formatMedium, formatWeekday, todayISO } from '../lib/dates';
 import { fmtMinutes, fmtNumber } from '../lib/format';
 import type { PlanSession } from '../types';
 import { PageHeader, SectionCard, EmptyState } from '../components/Page';
 import { ProgressBar } from '../components/Charts';
 import { Icon } from '../components/Icon';
+import { SessionSheet } from '../components/SessionSheet';
 
 /**
  * Le plan long terme, rendu lisible.
@@ -53,6 +54,7 @@ export function PlanPage() {
 
   const currentWeek = plan ? weekIndexFor(plan, today) : null;
   const [openWeek, setOpenWeek] = useState<number | null>(null);
+  const [openSession, setOpenSession] = useState<{ week: number; id: string } | null>(null);
   const activeWeek = openWeek ?? currentWeek ?? 0;
 
   if (!plan || !stats) {
@@ -71,7 +73,7 @@ export function PlanPage() {
           <EmptyState
             icon="target"
             title="Aucun plan pour l’instant"
-            text="Le bilan de départ prend deux minutes : objectif, disponibilité, matériel. PulseCraft en déduit un programme de 4 à 24 semaines, avec une semaine allégée toutes les quatre semaines."
+            text="Le bilan de départ prend deux minutes : objectif, disponibilité, matériel. Battement en déduit un programme de 4 à 24 semaines, avec une semaine allégée toutes les quatre semaines."
             action={
               <button type="button" className="btn btn--primary" onClick={openWizard}>
                 Faire mon bilan
@@ -91,6 +93,14 @@ export function PlanPage() {
   const elapsedMilestones = plan.milestones.filter(
     (milestone) => currentWeek !== null && milestone.week <= currentWeek
   ).length;
+  const hasExerciseDetail = plan.weeks.some((item) =>
+    item.sessions.some((session) => Boolean(session.exercises?.length))
+  );
+  const sheetSession = openSession
+    ? plan.weeks[openSession.week]?.sessions.find((item) => item.id === openSession.id) ?? null
+    : null;
+  const openSheet = (weekIndex: number, sessionId: string) =>
+    setOpenSession({ week: weekIndex, id: sessionId });
 
   const askNarrative = async () => {
     setNoteBusy(true);
@@ -117,7 +127,7 @@ export function PlanPage() {
             Votre cap<span className="title-dot">.</span>
           </>
         }
-        subtitle={`${plan.intake.daysPerWeek} séances de ${plan.intake.sessionMin} min par semaine · ${goal.tagline.toLowerCase()}.`}
+        subtitle={`${plan.intake.daysPerWeek} séances de ${plan.intake.sessionMin} min par semaine · ${EQUIPMENT_LABELS[plan.intake.equipment]} · ${goal.tagline.toLowerCase()}.`}
         actions={
           <>
             <button type="button" className="btn btn--ghost btn--small" onClick={openWizard}>
@@ -139,6 +149,24 @@ export function PlanPage() {
           </>
         }
       />
+
+      {!hasExerciseDetail ? (
+        <div className="lp-upgrade">
+          <span className="lp-upgrade__icon">
+            <Icon name="spark" size={18} />
+          </span>
+          <div>
+            <strong>Ce plan date d’avant les séances détaillées.</strong>
+            <p>
+              Refaites le bilan (2 minutes) pour obtenir les mouvements, les séries et les dips
+              au poids du corps.
+            </p>
+          </div>
+          <button type="button" className="btn btn--primary btn--small" onClick={openWizard}>
+            Mettre à jour
+          </button>
+        </div>
+      ) : null}
 
       <div className="lp-stats">
         <article className="lp-stat">
@@ -247,8 +275,26 @@ export function PlanPage() {
                       <Icon name={sessionIcon(session)} size={17} />
                     </span>
                     <div className="lp-session__body">
-                      <strong>{session.title}</strong>
+                      <button
+                        type="button"
+                        className="lp-session__title"
+                        onClick={() => openSheet(week.index, session.id)}
+                      >
+                        {session.title}
+                      </button>
                       <span>{session.detail}</span>
+                      {session.exercises?.length ? (
+                        <button
+                          type="button"
+                          className="lp-session__exercises"
+                          onClick={() => openSheet(week.index, session.id)}
+                        >
+                          {session.exercises.slice(0, 3).map((exercise) => exercise.name).join(' · ')}
+                          {session.exercises.length > 3
+                            ? ` · +${session.exercises.length - 3}`
+                            : ''}
+                        </button>
+                      ) : null}
                     </div>
                     <div className="lp-session__meta">
                       <span>{formatWeekday(addDays(week.startDate, session.day))}</span>
@@ -256,6 +302,15 @@ export function PlanPage() {
                       <i className={`lp-intensity lp-intensity--${session.intensity}`}>
                         {INTENSITY_LABEL[session.intensity]}
                       </i>
+                      {session.exercises?.length ? (
+                        <button
+                          type="button"
+                          className="textlink lp-session__open"
+                          onClick={() => openSheet(week.index, session.id)}
+                        >
+                          Voir la séance <Icon name="arrow" size={14} />
+                        </button>
+                      ) : null}
                     </div>
                   </li>
                 ))}
@@ -277,7 +332,7 @@ export function PlanPage() {
               </span>
               {plan.noteSource === 'ai'
                 ? 'Rédigé à partir de choix fermés : objectif, fréquence, matériel, sommeil.'
-                : 'Rédigé par PulseCraft, sans réseau ni clé.'}
+                : 'Rédigé par Battement, sans réseau ni clé.'}
             </p>
           </SectionCard>
 
@@ -348,7 +403,13 @@ export function PlanPage() {
                 <ul>
                   {item.sessions.map((session) => (
                     <li key={session.id} className={session.doneAt ? 'is-done' : ''}>
-                      <span>{session.title}</span>
+                      <button
+                        type="button"
+                        className="lp-weeks__title"
+                        onClick={() => openSheet(item.index, session.id)}
+                      >
+                        {session.title}
+                      </button>
                       <em>{session.minutes} min</em>
                       <span>{formatWeekday(addDays(item.startDate, session.day))}</span>
                       <button
@@ -372,6 +433,14 @@ export function PlanPage() {
         médical : en cas de douleur persistante, de malaise ou de fatigue inhabituelle, arrêtez la
         séance et consultez un professionnel de santé.
       </p>
+
+      <SessionSheet
+        open={Boolean(openSession)}
+        onClose={() => setOpenSession(null)}
+        plan={plan}
+        weekIndex={openSession?.week ?? 0}
+        session={sheetSession}
+      />
     </div>
   );
 }

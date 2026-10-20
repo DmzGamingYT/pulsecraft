@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PulseCraft",
+  "productName": "Battement",
   "version": "0.1.0",
   "identifier": "app.pulsecraft.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "PulseCraft",
+        "title": "Battement",
         "width": 1280,
         "height": 880,
         "minWidth": 900,
@@ -38,8 +38,8 @@
     ],
     "category": "HealthAndFitness",
     "shortDescription": "Suivi sportif et santé local-first",
-    "longDescription": "PulseCraft réunit entraînements, sommeil, corps et nutrition dans une application open source. Les données restent sur l'appareil ; le coach IA ne reçoit que des agrégats anonymes.",
-    "copyright": "MIT — PulseCraft contributors",
+    "longDescription": "Battement réunit entraînements, sommeil, corps et nutrition dans une application open source. Les données restent sur l'appareil ; le coach IA ne reçoit que des agrégats anonymes.",
+    "copyright": "MIT — Battement contributors",
     "macOS": {
       "minimumSystemVersion": "11.0"
     }

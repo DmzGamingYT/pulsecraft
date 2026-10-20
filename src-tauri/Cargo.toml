@@ -1,8 +1,8 @@
 [package]
 name = "pulsecraft"
 version = "0.1.0"
-description = "PulseCraft — suivi sportif et santé local-first, avec coach IA"
-authors = ["PulseCraft contributors"]
+description = "Battement — suivi sportif et santé local-first, avec coach IA"
+authors = ["Battement contributors"]
 edition = "2021"
 rust-version = "1.77.2"
 license = "MIT"
@@ -19,6 +19,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tauri-plugin-updater = "2"
 
 [profile.release]
 codegen-units = 1

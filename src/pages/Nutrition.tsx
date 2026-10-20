@@ -104,7 +104,7 @@ export function NutritionPage() {
             <div className="energy__bar">
               <ProgressBar value={nutrition.kcal} goal={goal} color="var(--coral)" label="Calories du jour" />
               <div className="energy__scale">
-                <span>0</span>
+                <span>0 kcal</span>
                 <span>Objectif {fmtNumber(goal)} kcal</span>
               </div>
             </div>

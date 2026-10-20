@@ -6,6 +6,7 @@ import { useUi } from '../lib/uiStore';
 import { fetchPlanNarrative } from '../lib/ai';
 import { aiReady, PROVIDER_HINTS, PROVIDER_LABELS, testProvider, type TestResult } from '../lib/llm';
 import { buildPlan, EXPERIENCE_LABELS, GOALS, localPlanNote } from '../lib/plan';
+import { addDays, todayISO } from '../lib/dates';
 import type {
   AiConfig,
   AiProvider,
@@ -118,7 +119,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
   // quelque chose d'utile immédiatement, l'IA ne fait qu'enrichir le commentaire.
   useEffect(() => {
     if (!open || step !== LAST || preview) return;
-    const base = buildPlan(intake, { note: localPlanNote(intake) });
+    const base = buildPlan(intake, { note: localPlanNote(intake), startToday: true });
     setPreview(base);
 
     const settings = usePulse.getState().settings;
@@ -144,6 +145,12 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
   }, [open, step, preview, intake, aiOn, config]);
 
   if (!open) return null;
+
+  const today = todayISO();
+  const firstWeek = preview?.weeks[0];
+  const startsToday = Boolean(
+    firstWeek?.sessions.some((session) => addDays(firstWeek.startDate, session.day) === today)
+  );
 
   const validate = (index: number): string | null => {
     if (index === 1) {
@@ -231,7 +238,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
         <header className="onb__head">
           <div className="onb__brand">
             <AppIcon size={34} animated={false} />
-            <span>PulseCraft</span>
+            <span>Battement</span>
           </div>
           <ol className="onb__steps" aria-label="Étapes du bilan">
             {STEPS.map((label, index) => (
@@ -264,7 +271,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
                   pas un programme générique<span className="title-dot">.</span>
                 </h2>
                 <p>
-                  Quelques questions sur votre objectif et votre disponibilité réelle. PulseCraft
+                  Quelques questions sur votre objectif et votre disponibilité réelle. Battement
                   construit ensuite un programme de plusieurs semaines, avec des phases, des
                   semaines allégées et des repères concrets.
                 </p>
@@ -483,7 +490,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
                 <div className="onb-choice__row">
                   {(
                     [
-                      ['aucun', 'Aucun / poids du corps'],
+                      ['aucun', 'Poids du corps (dips, pompes…)'],
                       ['maison', 'Maison (élastiques, haltères)'],
                       ['salle', 'Salle de sport'],
                     ] as Array<[Equipment, string]>
@@ -549,7 +556,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
                 <span aria-hidden />
                 <div>
                   <strong>Utiliser le coach IA</strong>
-                  <em>Désactivé, tout reste local et le plan est rédigé par PulseCraft.</em>
+                  <em>Désactivé, tout reste local et le plan est rédigé par Battement.</em>
                 </div>
               </label>
 
@@ -658,6 +665,13 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
                 les quatre semaines.
               </p>
 
+              {startsToday ? (
+                <p className="onb-today">
+                  <Icon name="today" size={15} /> Première séance prévue aujourd’hui : le plan
+                  démarre à votre rythme, sans attendre lundi.
+                </p>
+              ) : null}
+
               {preview ? (
                 <>
                   <div className="onb-phases">
@@ -674,7 +688,11 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
 
                   <div className="onb-week">
                     <header>
-                      <strong>Semaine type</strong>
+                      <strong>
+                        {preview.weeks[0]?.focus.startsWith('Mise en route')
+                          ? 'Première semaine'
+                          : 'Semaine type'}
+                      </strong>
                       <span>{preview.weeks[0]?.targetMinutes ?? 0} min prévues</span>
                     </header>
                     <ul>
@@ -758,7 +776,8 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
                 onClick={finish}
                 disabled={!preview}
               >
-                Adopter ce plan <Icon name="check" size={16} />
+                {startsToday ? 'Commencer aujourd’hui' : 'Adopter ce plan'}{' '}
+                <Icon name="check" size={16} />
               </button>
             )}
           </div>

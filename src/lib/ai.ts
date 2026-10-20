@@ -1,5 +1,5 @@
 /**
- * Coach IA de PulseCraft.
+ * Coach IA de Battement.
  *
  * Le fournisseur est choisi par l'utilisateur (gratuit sans clé, API
  * compatible OpenAI avec sa clé, ou modèle local) et vit dans `lib/llm.ts`.
@@ -36,7 +36,7 @@ export interface CoachReply {
   local: boolean;
 }
 
-const SYSTEM_PROMPT = `Tu es le coach de PulseCraft, une application open source de suivi sportif et santé.
+const SYSTEM_PROMPT = `Tu es le coach de Battement, une application open source de suivi sportif et santé.
 Tu réponds en français, de façon concise (180 mots maximum), concrète et bienveillante.
 Tu t'appuies uniquement sur les données agrégées fournies. Tu n'inventes aucun chiffre.
 Tu ne poses jamais de diagnostic médical et tu ne prescris ni médicament, ni complément, ni régime thérapeutique.

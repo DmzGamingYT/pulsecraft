@@ -211,7 +211,7 @@ export function WorkoutModal({
 
       <p className="formhint">
         <Icon name="spark" size={15} />
-        {meta.label} · {meta.met} MET. Sans calories saisies, PulseCraft utilise cette estimation.
+        {meta.label} · {meta.met} MET. Sans calories saisies, Battement utilise cette estimation.
       </p>
       {error ? <p className="formerror" role="alert">{error}</p> : null}
     </Modal>

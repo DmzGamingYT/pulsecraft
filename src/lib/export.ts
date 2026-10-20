@@ -2,7 +2,7 @@ import type { BodyEntry, DayLog, Goals, Meal, Profile, SleepEntry, Workout } fro
 import { todayISO } from './dates';
 
 export interface ExportBundle {
-  app: 'PulseCraft';
+  app: 'Battement';
   version: 1;
   exportedAt: string;
   profile: Profile;
@@ -16,7 +16,7 @@ export interface ExportBundle {
 
 export function buildExport(data: Omit<ExportBundle, 'app' | 'version' | 'exportedAt'>): ExportBundle {
   return {
-    app: 'PulseCraft',
+    app: 'Battement',
     version: 1,
     exportedAt: new Date().toISOString(),
     ...data,

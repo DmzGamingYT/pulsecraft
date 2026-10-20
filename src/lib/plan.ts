@@ -16,9 +16,11 @@
  */
 
 import type {
+  Equipment,
   Experience,
   GoalKind,
   ISODate,
+  PlanExercise,
   PlanIntake,
   PlanMilestone,
   PlanPhase,
@@ -45,8 +47,8 @@ export const GOALS: Record<GoalKind, GoalMeta> = {
   },
   force: {
     label: 'Force & muscle',
-    tagline: 'Devenir plus fort, sans matériel de salle',
-    detail: 'Deux à quatre séances de renforcement, du cardio d’entretien.',
+    tagline: 'Dips, pompes, tractions : progresser au poids du corps',
+    detail: 'Deux à quatre séances de renforcement détaillées, du cardio d’entretien.',
     accent: 'var(--amber)',
   },
   perte: {
@@ -73,6 +75,12 @@ export const EXPERIENCE_LABELS: Record<Experience, string> = {
   debutant: 'Je débute',
   intermediaire: 'Je pratique déjà',
   avance: 'Je m’entraîne régulièrement',
+};
+
+export const EQUIPMENT_LABELS: Record<Equipment, string> = {
+  aucun: 'Poids du corps',
+  maison: 'Maison · élastiques & haltères',
+  salle: 'Salle de sport',
 };
 
 /** Jours de la semaine (0 = lundi) : on écarte les enchaînements de qualité. */
@@ -125,7 +133,7 @@ const BLUEPRINTS: Record<GoalKind, Blueprint[]> = {
       slot: 'strength',
       type: 'Musculation',
       title: 'Renforcement coureur',
-      detail: 'Squat, fente, gainage, mollets, tirage. 3 séries, charge modérée.',
+      detail: '5 min d’échauffement, puis les mouvements ci-dessous. Charge modérée, technique propre.',
       intensity: 'modérée',
     },
     {
@@ -140,22 +148,22 @@ const BLUEPRINTS: Record<GoalKind, Blueprint[]> = {
     {
       slot: 'strength',
       type: 'Musculation',
-      title: 'Bas du corps',
-      detail: 'Squat, fente, pont fessier, mollets. 4 séries de 6 à 10, repos 90 s.',
-      intensity: 'soutenue',
-    },
-    {
-      slot: 'strength',
-      type: 'Musculation',
-      title: 'Haut du corps',
-      detail: 'Pompes, tirage, élévations, gainage. 4 séries de 6 à 12.',
+      title: 'Haut du corps · dips',
+      detail: 'Échauffement 5 min (épaules, pompes faciles), puis dips et le reste. Repos 90 s sur les dips.',
       intensity: 'modérée',
     },
     {
       slot: 'strength',
       type: 'Musculation',
-      title: 'Corps complet',
-      detail: 'Squat, pompes, tirage, gainage. 3 tours, 8 à 12 répétitions.',
+      title: 'Bas du corps',
+      detail: 'Échauffement 5 min, puis les mouvements ci-dessous. Repos 60 à 90 s entre les séries.',
+      intensity: 'soutenue',
+    },
+    {
+      slot: 'strength',
+      type: 'Musculation',
+      title: 'Corps complet · dips',
+      detail: 'Un circuit complet, dips compris. Repos 60 à 90 s entre les séries.',
       intensity: 'modérée',
     },
     {
@@ -185,7 +193,7 @@ const BLUEPRINTS: Record<GoalKind, Blueprint[]> = {
       slot: 'strength',
       type: 'Musculation',
       title: 'Renforcement complet',
-      detail: 'Squat, pompes, tirage, gainage. 3 tours, 10 à 12 répétitions.',
+      detail: 'Un tour complet des mouvements ci-dessous, sans chrono. Repos 45 à 75 s.',
       intensity: 'modérée',
     },
     {
@@ -224,7 +232,7 @@ const BLUEPRINTS: Record<GoalKind, Blueprint[]> = {
       slot: 'strength',
       type: 'Musculation',
       title: 'Renforcement doux',
-      detail: 'Chaise, pompes inclinées, pont fessier, gainage. 2 à 3 séries, sans forcer.',
+      detail: 'Deux séries calmes, amplitude confortable, jamais jusqu’à la douleur.',
       intensity: 'faible',
     },
     {
@@ -268,7 +276,7 @@ const BLUEPRINTS: Record<GoalKind, Blueprint[]> = {
       slot: 'strength',
       type: 'Musculation',
       title: 'Renforcement spécifique',
-      detail: 'Squat, soulevé de terre léger, gainage, mollets. 3 séries de 6 à 8.',
+      detail: 'Échauffement 5 min, puis les mouvements ci-dessous. 3 séries de 6 à 10.',
       intensity: 'modérée',
     },
     {
@@ -288,6 +296,291 @@ const BLUEPRINTS: Record<GoalKind, Blueprint[]> = {
     },
   ],
 };
+
+/* ------------------------------------------- mouvements de renforcement */
+
+/**
+ * Les séances de musculation ne sont pas les mêmes pour tout le monde : le
+ * matériel choisi au bilan décide de la famille de mouvements, le niveau décide
+ * de la variante. Les dips existent dans les trois familles — sur banc, entre
+ * deux chaises, ou aux barres — pour que le poids du corps reste une vraie
+ * progression et pas un plan au rabais.
+ */
+type MovementPattern =
+  | 'squat'
+  | 'hinge'
+  | 'lunge'
+  | 'push'
+  | 'dip'
+  | 'pull'
+  | 'core'
+  | 'calf'
+  | 'shoulder';
+
+interface MovementVariant {
+  name: string;
+  reps: string;
+  note?: string;
+}
+
+const MOVEMENTS: Record<Equipment, Record<MovementPattern, MovementVariant[]>> = {
+  aucun: {
+    squat: [
+      { name: 'Squat sur chaise', reps: '10–15', note: 'Effleurez l’assise, sans relâcher le gainage.' },
+      { name: 'Squat au poids du corps', reps: '15–20', note: 'Cuisses au moins parallèles, talons au sol.' },
+      { name: 'Squat sauté', reps: '8–12', note: 'Réception souple, genoux alignés avec les pieds.' },
+    ],
+    hinge: [
+      { name: 'Pont fessier', reps: '15–20', note: 'Poussez dans les talons, serrez les fessiers en haut.' },
+      { name: 'Pont fessier une jambe', reps: '10–12 / jambe', note: 'Bassin stable, ne cambrez pas le bas du dos.' },
+      { name: 'Soulevé de terre une jambe', reps: '8–10 / jambe', note: 'Dos plat, hanche qui recule ; appuyez-vous au mur.' },
+    ],
+    lunge: [
+      { name: 'Fente soutenue', reps: '8–10 / jambe', note: 'Une main sur une chaise pour l’équilibre.' },
+      { name: 'Fente avant', reps: '10–12 / jambe', note: 'Le genou arrière frôle le sol, buste droit.' },
+      { name: 'Fente bulgare sur chaise', reps: '8–12 / jambe', note: 'Pied arrière sur la chaise, appui avant stable.' },
+    ],
+    push: [
+      { name: 'Pompes inclinées sur table', reps: '10–15', note: 'Mains sur une table stable, corps gainé.' },
+      { name: 'Pompes', reps: '8–15', note: 'Coudes à 45°, poitrine proche du sol.' },
+      { name: 'Pompes déclinées', reps: '6–12', note: 'Pieds sur une chaise, gainage strict.' },
+    ],
+    dip: [
+      { name: 'Dips sur banc, pieds au sol', reps: '8–12', note: 'Mains au bord du banc, coudes vers l’arrière.' },
+      { name: 'Dips entre deux chaises', reps: '6–10', note: 'Chaises stables contre un mur, descente contrôlée.' },
+      { name: 'Dips aux barres parallèles', reps: '6–10', note: 'Épaules basses, amplitude confortable ; lestez avec un sac.' },
+    ],
+    pull: [
+      { name: 'Rowing inversé sous table', reps: '8–12', note: 'Table solide, corps aligné, poitrine vers le bord.' },
+      { name: 'Rowing inversé jambes tendues', reps: '8–12', note: 'Corps plus horizontal, tirez les omoplates.' },
+      { name: 'Rowing inversé pieds surélevés', reps: '6–10', note: 'Pieds sur une chaise, gainage strict.' },
+    ],
+    core: [
+      { name: 'Dead bug', reps: '8–10 / côté', note: 'Bas du dos plaqué au sol.' },
+      { name: 'Planche', reps: '30–45 s', note: 'Alignement épaules-bassin-chevilles.' },
+      { name: 'Hollow hold', reps: '20–40 s', note: 'Bas du dos au sol, bras tendus.' },
+    ],
+    calf: [
+      { name: 'Mollets debout', reps: '20–25', note: 'Montée lente sur la pointe, appui au mur.' },
+      { name: 'Mollets une jambe', reps: '12–15 / jambe', note: 'Une main au mur, cheville stable.' },
+      { name: 'Mollets sautés', reps: '15–20', note: 'Réception silencieuse, genoux souples.' },
+    ],
+    shoulder: [
+      { name: 'Y-T-W au sol', reps: '8 / forme', note: 'Bras au sol, omoplates serrées ; aucun poids.' },
+      { name: 'Pike push-up', reps: '6–10', note: 'Hanche haute, tête entre les mains.' },
+      { name: 'Pike push-up décliné', reps: '6–10', note: 'Pieds surélevés, descente contrôlée.' },
+    ],
+  },
+  maison: {
+    squat: [
+      { name: 'Squat gobelet (haltère)', reps: '10–12', note: 'Haltère contre la poitrine, dos droit.' },
+      { name: 'Squat gobelet lourd', reps: '8–12', note: 'Charge tenable, amplitude complète.' },
+      { name: 'Fente bulgare haltères', reps: '8–10 / jambe', note: 'Pied arrière sur une chaise, buste stable.' },
+    ],
+    hinge: [
+      { name: 'Pont fessier', reps: '15–20', note: 'Poussez dans les talons, gainage serré.' },
+      { name: 'Soulevé de terre haltères', reps: '8–12', note: 'Dos plat, haltères le long des jambes.' },
+      { name: 'Soulevé de terre une jambe', reps: '8–10 / jambe', note: 'Hanche qui recule, dos plat.' },
+    ],
+    lunge: [
+      { name: 'Fente avant haltères', reps: '10–12 / jambe', note: 'Buste droit, genou dans l’axe du pied.' },
+      { name: 'Fente marchée haltères', reps: '10–12 / jambe', note: 'Pas contrôlé, sans rebond.' },
+      { name: 'Fente bulgare haltères', reps: '8–10 / jambe', note: 'Pied arrière surélevé, appui stable.' },
+    ],
+    push: [
+      { name: 'Pompes', reps: '8–15', note: 'Coudes à 45°, corps gainé.' },
+      { name: 'Développé haltères', reps: '8–12', note: 'Omoplates serrées, poignets au-dessus des coudes.' },
+      { name: 'Pompes déclinées', reps: '6–12', note: 'Pieds surélevés, gainage strict.' },
+    ],
+    dip: [
+      { name: 'Dips sur banc', reps: '8–12', note: 'Mains au bord, coudes vers l’arrière.' },
+      { name: 'Dips entre chaises', reps: '6–10', note: 'Chaises stables, descente contrôlée.' },
+      { name: 'Dips lestées (sac)', reps: '6–10', note: 'Sac sur les cuisses, amplitude confortable.' },
+    ],
+    pull: [
+      { name: 'Rowing élastique', reps: '12–15', note: 'Élastique ancré bas, coudes vers l’arrière.' },
+      { name: 'Rowing haltère', reps: '8–12 / bras', note: 'Dos plat, coude le long du corps.' },
+      { name: 'Tirage élastique fort', reps: '8–12', note: 'Élastique court, tenez 1 s en fin de tirage.' },
+    ],
+    core: [
+      { name: 'Planche', reps: '30–45 s', note: 'Alignement épaules-bassin-chevilles.' },
+      { name: 'Planche + reach', reps: '8 / côté', note: 'Tendez un bras sans tourner le bassin.' },
+      { name: 'Hollow hold', reps: '20–40 s', note: 'Bas du dos au sol, bras tendus.' },
+    ],
+    calf: [
+      { name: 'Mollets debout', reps: '20–25', note: 'Montée lente, appui au mur.' },
+      { name: 'Mollets haltères', reps: '12–15', note: 'Charge dans les mains, chevilles stables.' },
+      { name: 'Mollets une jambe', reps: '12–15 / jambe', note: 'Une main au mur, amplitude complète.' },
+    ],
+    shoulder: [
+      { name: 'Élévations latérales', reps: '12–15', note: 'Haltères légers, coudes légèrement fléchis.' },
+      { name: 'Développé militaire haltères', reps: '8–12', note: 'Gainage serré, sans cambrer.' },
+      { name: 'Oiseau haltères', reps: '10–12', note: 'Buste penché, omoplates serrées.' },
+    ],
+  },
+  salle: {
+    squat: [
+      { name: 'Presse à cuisses', reps: '10–15', note: 'Amplitude confortable, sans décoller le bassin.' },
+      { name: 'Squat barre', reps: '6–10', note: 'Barre stable, descente contrôlée.' },
+      { name: 'Squat barre lourd', reps: '4–8', note: 'Charge progressive, technique d’abord.' },
+    ],
+    hinge: [
+      { name: 'Leg curl', reps: '10–15', note: 'Contrôlez la descente, sans élan.' },
+      { name: 'Soulevé de terre roumain', reps: '8–10', note: 'Dos plat, hanche qui recule.' },
+      { name: 'Soulevé de terre', reps: '4–8', note: 'Charge progressive, gainage strict.' },
+    ],
+    lunge: [
+      { name: 'Fente guidée', reps: '10–12 / jambe', note: 'Appui stable, genou dans l’axe.' },
+      { name: 'Fente haltères', reps: '10–12 / jambe', note: 'Buste droit, pas contrôlé.' },
+      { name: 'Fente bulgare', reps: '8–10 / jambe', note: 'Pied arrière surélevé, charge modérée.' },
+    ],
+    push: [
+      { name: 'Développé couché', reps: '8–12', note: 'Omoplates serrées, poignets stables.' },
+      { name: 'Développé incliné haltères', reps: '8–12', note: 'Trajectoire contrôlée, sans cambrer.' },
+      { name: 'Développé couché barre', reps: '4–8', note: 'Charge progressive, sécurité assurée.' },
+    ],
+    dip: [
+      { name: 'Dips assistées', reps: '8–12', note: 'Machine ou élastique, descente contrôlée.' },
+      { name: 'Dips aux barres', reps: '6–10', note: 'Épaules basses, coudes vers l’arrière.' },
+      { name: 'Dips lestées', reps: '4–8', note: 'Ceinture ou haltère entre les pieds.' },
+    ],
+    pull: [
+      { name: 'Tirage vertical', reps: '10–12', note: 'Poitrine haute, coudes vers le bas.' },
+      { name: 'Tirage horizontal', reps: '10–12', note: 'Omoplates serrées, sans élan.' },
+      { name: 'Tractions', reps: '5–10', note: 'Prise stable, descente contrôlée.' },
+    ],
+    core: [
+      { name: 'Planche', reps: '30–45 s', note: 'Alignement épaules-bassin-chevilles.' },
+      { name: 'Crunch à la poulie', reps: '12–15', note: 'Enroulez le dos, sans tirer avec les bras.' },
+      { name: 'Relevé de jambes suspendu', reps: '8–12', note: 'Bassin qui monte, pas d’élan.' },
+    ],
+    calf: [
+      { name: 'Mollets à la presse', reps: '15–20', note: 'Amplitude complète, sans rebond.' },
+      { name: 'Mollets debout machine', reps: '12–15', note: 'Montée lente, pause en haut.' },
+      { name: 'Mollets une jambe', reps: '12–15 / jambe', note: 'Charge modérée, cheville stable.' },
+    ],
+    shoulder: [
+      { name: 'Élévations latérales poulie', reps: '12–15', note: 'Coudes légèrement fléchis, sans élan.' },
+      { name: 'Développé militaire', reps: '6–10', note: 'Gainage serré, barre au-dessus de la tête.' },
+      { name: 'Oiseau poulie', reps: '12–15', note: 'Omoplates serrées, buste stable.' },
+    ],
+  },
+};
+
+interface ExerciseSlot {
+  pattern: MovementPattern;
+  /** Séries de référence avant ajustement au niveau et à la semaine. */
+  sets: number;
+}
+
+/** Composition des séances de renforcement, par titre de séance. */
+const RECIPES: Record<string, ExerciseSlot[]> = {
+  'Bas du corps': [
+    { pattern: 'squat', sets: 4 },
+    { pattern: 'lunge', sets: 3 },
+    { pattern: 'hinge', sets: 3 },
+    { pattern: 'calf', sets: 3 },
+    { pattern: 'core', sets: 3 },
+  ],
+  'Haut du corps · dips': [
+    { pattern: 'dip', sets: 4 },
+    { pattern: 'push', sets: 3 },
+    { pattern: 'pull', sets: 3 },
+    { pattern: 'shoulder', sets: 3 },
+    { pattern: 'core', sets: 3 },
+  ],
+  'Corps complet · dips': [
+    { pattern: 'dip', sets: 3 },
+    { pattern: 'pull', sets: 3 },
+    { pattern: 'squat', sets: 3 },
+    { pattern: 'push', sets: 3 },
+    { pattern: 'core', sets: 3 },
+  ],
+  'Renforcement coureur': [
+    { pattern: 'squat', sets: 3 },
+    { pattern: 'lunge', sets: 3 },
+    { pattern: 'hinge', sets: 3 },
+    { pattern: 'calf', sets: 3 },
+    { pattern: 'core', sets: 3 },
+  ],
+  'Renforcement complet': [
+    { pattern: 'squat', sets: 3 },
+    { pattern: 'push', sets: 3 },
+    { pattern: 'pull', sets: 3 },
+    { pattern: 'core', sets: 3 },
+  ],
+  'Renforcement doux': [
+    { pattern: 'squat', sets: 2 },
+    { pattern: 'push', sets: 2 },
+    { pattern: 'hinge', sets: 2 },
+    { pattern: 'core', sets: 2 },
+  ],
+  'Renforcement spécifique': [
+    { pattern: 'squat', sets: 3 },
+    { pattern: 'hinge', sets: 3 },
+    { pattern: 'calf', sets: 3 },
+    { pattern: 'core', sets: 3 },
+  ],
+};
+
+const REST_SEC: Record<MovementPattern, number> = {
+  squat: 90,
+  hinge: 90,
+  lunge: 75,
+  push: 75,
+  dip: 90,
+  pull: 90,
+  core: 45,
+  calf: 45,
+  shoulder: 60,
+};
+
+const EXPERIENCE_INDEX: Record<Experience, number> = {
+  debutant: 0,
+  intermediaire: 1,
+  avance: 2,
+};
+
+/**
+ * Construit la liste de mouvements d’une séance de renforcement. Le niveau
+ * choisit la variante, la semaine ajuste le nombre de séries, et la semaine
+ * allégée retire une série. Aucune charge chiffrée n’est inventée.
+ */
+function buildExercises(
+  title: string,
+  intake: PlanIntake,
+  weekIndex: number
+): PlanExercise[] | undefined {
+  const recipe = RECIPES[title];
+  if (!recipe) return undefined;
+
+  // « Renforcement doux » garde volontairement les variantes les plus faciles,
+  // même si l’utilisateur se déclare expérimenté.
+  const gentle = title === 'Renforcement doux';
+  const index = gentle ? 0 : EXPERIENCE_INDEX[intake.experience];
+  const bank = MOVEMENTS[intake.equipment];
+
+  return recipe.map((slot, position) => {
+    const variants = bank[slot.pattern];
+    const variant = variants[Math.min(index, variants.length - 1)] ?? variants[0]!;
+    let sets = slot.sets;
+    if (intake.experience === 'debutant') sets -= 1;
+    if (intake.experience === 'avance') sets += 1;
+    if (isDeload(weekIndex)) {
+      sets -= 1;
+    } else if (weekIndex % 4 === 2 && position === 0) {
+      // Une série de plus sur le mouvement principal, au troisième semaine du bloc.
+      sets += 1;
+    }
+    return {
+      name: variant.name,
+      sets: clamp(sets, 2, 6),
+      reps: variant.reps,
+      restSec: REST_SEC[slot.pattern],
+      note: variant.note,
+    };
+  });
+}
 
 const PHASE_BY_GOAL: Record<GoalKind, PlanPhase[]> = {
   endurance: [
@@ -323,14 +616,14 @@ const PHASE_BY_GOAL: Record<GoalKind, PlanPhase[]> = {
       fromWeek: 0,
       toWeek: 0,
       focus: 'Technique et amplitude',
-      objective: 'Maîtriser les mouvements de base avec une charge modérée.',
+      objective: 'Maîtriser les mouvements de base, amplitude et technique.',
     },
     {
       id: 'build',
       name: 'Charge progressive',
       fromWeek: 0,
       toWeek: 0,
-      focus: 'Ajouter des répétitions, puis de la charge',
+      focus: 'Ajouter des répétitions, puis une variante plus difficile',
       objective: 'Progresser sur les quatre mouvements principaux.',
     },
     {
@@ -479,7 +772,8 @@ function makeSession(
   blueprint: Blueprint,
   day: number,
   minutes: number,
-  weekIndex: number
+  weekIndex: number,
+  intake: PlanIntake
 ): PlanSession {
   return {
     id: `p${weekIndex}_${day}_${blueprint.slot}`,
@@ -489,7 +783,30 @@ function makeSession(
     minutes: Math.max(15, Math.round(minutes / 5) * 5),
     intensity: blueprint.intensity,
     detail: blueprint.detail,
+    exercises:
+      blueprint.type === 'Musculation'
+        ? buildExercises(blueprint.title, intake, weekIndex)
+        : undefined,
   };
+}
+
+/**
+ * Première semaine quand le bilan est fait en semaine : on garde les jours
+ * prévus après aujourd’hui, on ajoute aujourd’hui, et on écarte les séances
+ * collées pour ne pas enchaîner deux séances dures. La semaine 1 peut donc
+ * contenir moins de séances que les suivantes — c’est une mise en route, pas
+ * un plan tronqué.
+ */
+function firstWeekDays(days: number[], weekday: number): number[] {
+  if (weekday <= 0 || weekday >= 5) return days;
+  const picked = [weekday];
+  for (const day of [...days].sort((a, b) => a - b)) {
+    if (day <= weekday) continue;
+    const last = picked[picked.length - 1] ?? weekday;
+    if (day - last < 2) continue;
+    picked.push(day);
+  }
+  return picked;
 }
 
 function buildMilestones(goal: GoalKind, horizonWeeks: number, intake: PlanIntake): PlanMilestone[] {
@@ -630,6 +947,8 @@ export interface PlanOptions {
   today?: ISODate;
   note?: string;
   noteSource?: 'ai' | 'local';
+  /** Place une séance aujourd’hui quand le bilan est fait en semaine. */
+  startToday?: boolean;
 }
 
 export function buildPlan(intake: PlanIntake, options: PlanOptions = {}): TrainingPlan {
@@ -652,16 +971,21 @@ export function buildPlan(intake: PlanIntake, options: PlanOptions = {}): Traini
 
   for (let weekIndex = 0; weekIndex < horizonWeeks; weekIndex += 1) {
     const factor = volumeFactor(weekIndex);
-    const sessions: PlanSession[] = days.map((day, slotIndex) => {
+    const weekDays =
+      weekIndex === 0 && options.startToday ? firstWeekDays(days, weekday) : days;
+    const sessions: PlanSession[] = weekDays.map((day, slotIndex) => {
       const blueprint = blueprintFor(intake.goal, slotIndex);
       const base = intake.sessionMin + (blueprint.extraMin ?? 0);
-      return makeSession(blueprint, day, base * factor, weekIndex);
+      return makeSession(blueprint, day, base * factor, weekIndex, intake);
     });
     const targetMinutes = sessions.reduce((total, session) => total + session.minutes, 0);
+    const partialStart = weekIndex === 0 && weekDays.length < days.length;
     weeks.push({
       index: weekIndex,
       startDate: addDays(firstMonday, weekIndex * 7),
-      focus: weekFocus(intake.goal, weekIndex, horizonWeeks),
+      focus: partialStart
+        ? 'Mise en route : première séance aujourd’hui'
+        : weekFocus(intake.goal, weekIndex, horizonWeeks),
       targetMinutes,
       deload: isDeload(weekIndex),
       sessions,

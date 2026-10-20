@@ -1,4 +1,4 @@
-/** Modèle de données de PulseCraft. Tout est local : aucune de ces structures
+/** Modèle de données de Battement. Tout est local : aucune de ces structures
  *  n'est envoyée à un serveur, sauf les agrégats choisis pour le coach IA. */
 
 export type ISODate = string;
@@ -214,6 +214,21 @@ export interface PlanIntake {
 
 export type PlanType = WorkoutType | 'Repos' | 'Mobilité';
 
+/**
+ * Un mouvement prescrit dans une séance de renforcement. Les séries et les
+ * répétitions sont calculées selon le niveau et la semaine : c’est ce qui rend
+ * le plan personnel, sans texte libre ni promesse de charge inventée.
+ */
+export interface PlanExercise {
+  name: string;
+  sets: number;
+  /** Répétitions, durée ou répétitions par côté (« 8–12 », « 30 s », « 8 / jambe »). */
+  reps: string;
+  restSec: number;
+  /** Consigne courte : amplitude, variante plus facile, matériel. */
+  note?: string;
+}
+
 export interface PlanSession {
   id: string;
   /** 0 = lundi … 6 = dimanche */
@@ -223,6 +238,8 @@ export interface PlanSession {
   minutes: number;
   intensity: PlanIntensity;
   detail: string;
+  /** Mouvements détaillés des séances de renforcement (poids du corps ou salle). */
+  exercises?: PlanExercise[];
   /** Date de réalisation, si la séance a été cochée. */
   doneAt?: string;
 }

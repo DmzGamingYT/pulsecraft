@@ -7,7 +7,7 @@
  *    Together…) avec la clé de l'utilisateur, stockée dans IndexedDB ;
  *  - `local` : Ollama, LM Studio, llama.cpp… sur la machine, sans réseau.
  *
- * Aucun secret ne transite par PulseCraft : la clé n'est envoyée qu'à l'URL
+ * Aucun secret ne transite par Battement : la clé n'est envoyée qu'à l'URL
  * choisie, dans l'en-tête Authorization. Un échec réseau ne casse jamais l'app :
  * l'appelant retombe sur le raisonnement local.
  */
@@ -137,7 +137,7 @@ export async function complete(
     messages,
     temperature: options.temperature ?? 0.55,
     max_tokens: options.maxTokens ?? 700,
-    ...(config.provider === 'pollinations' ? { referrer: 'pulsecraft' } : {}),
+    ...(config.provider === 'pollinations' ? { referrer: 'battement' } : {}),
   });
 
   if (config.provider === 'openai') {
@@ -223,7 +223,7 @@ export async function testProvider(config: AiConfig): Promise<TestResult> {
     const text = await complete(
       [
         { role: 'system', content: 'Tu réponds uniquement par le mot « ok », en minuscules.' },
-        { role: 'user', content: 'Connexion PulseCraft.' },
+        { role: 'user', content: 'Connexion Battement.' },
       ],
       config,
       { timeout: 15_000, maxTokens: 12, temperature: 0 }

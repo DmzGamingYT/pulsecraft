@@ -96,7 +96,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
         messages,
         temperature: 0.55,
         max_tokens: 900,
-        referrer: 'pulsecraft',
+        referrer: 'battement',
       }),
       signal: controller.signal,
     });

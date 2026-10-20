@@ -200,7 +200,7 @@ export function BodyPage() {
             <EmptyState
               icon="target"
               title="Pas encore d’objectif"
-              text="Un objectif de poids est facultatif. Si vous en définissez un, PulseCraft suit l’écart sans vous presser."
+              text="Un objectif de poids est facultatif. Si vous en définissez un, Battement suit l’écart sans vous presser."
               action={
                 <Link to="/reglages" className="btn btn--ghost btn--small">
                   Définir un objectif

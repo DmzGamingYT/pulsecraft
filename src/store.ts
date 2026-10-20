@@ -1,5 +1,5 @@
 /**
- * État global de PulseCraft, persisté dans IndexedDB.
+ * État global de Battement, persisté dans IndexedDB.
  *
  * Aucun compte, aucun serveur : chaque action écrit localement. Les données
  * d'exemple portent `demo: true` et un badge visible ; un import réel remplace

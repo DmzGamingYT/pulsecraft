@@ -1,7 +1,7 @@
 {
   "name": "pulse-core",
   "type": "module",
-  "description": "Noyau de calcul santé et entraînement de PulseCraft (Rust → WebAssembly)",
+  "description": "Noyau de calcul santé et entraînement de Battement (Rust → WebAssembly)",
   "version": "0.1.0",
   "license": "MIT",
   "repository": {

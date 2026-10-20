@@ -203,7 +203,7 @@ export function SettingsPage() {
       meals: data.meals,
       days: data.days,
     });
-    downloadFile(`pulsecraft-${exportDate()}.json`, JSON.stringify(bundle, null, 2), 'application/json');
+    downloadFile(`battement-${exportDate()}.json`, JSON.stringify(bundle, null, 2), 'application/json');
     notify('Export JSON téléchargé.', 'success');
   };
 
@@ -212,7 +212,7 @@ export function SettingsPage() {
       notify('Aucune séance à exporter.', 'error');
       return;
     }
-    downloadFile(`pulsecraft-seances-${exportDate()}.csv`, workoutsCsv(data.workouts), 'text/csv');
+    downloadFile(`battement-seances-${exportDate()}.csv`, workoutsCsv(data.workouts), 'text/csv');
     notify('Export CSV téléchargé.', 'success');
   };
 
@@ -225,7 +225,7 @@ export function SettingsPage() {
         eyebrow="Réglages"
         title={
           <>
-            Votre PulseCraft<span className="title-dot">.</span>
+            Votre Battement<span className="title-dot">.</span>
           </>
         }
         subtitle="Profil, objectifs, IA, imports et données. Tout se règle ici et reste sur cet appareil."
@@ -497,7 +497,7 @@ export function SettingsPage() {
               </SettingField>
               <SettingField
                 label={`Clé API${aiConfig.provider === 'local' ? ' (facultative)' : ''}`}
-                hint="Stockée dans IndexedDB, jamais exportée, jamais envoyée à PulseCraft."
+                hint="Stockée dans IndexedDB, jamais exportée, jamais envoyée à Battement."
               >
                 <input
                   type="password"
@@ -661,7 +661,7 @@ export function SettingsPage() {
         </SectionCard>
 
         <SectionCard title="Données" subtitle="Export, démonstration, effacement">
-          <Row title="Tout exporter" description="Un JSON lisible par PulseCraft et par vous.">
+          <Row title="Tout exporter" description="Un JSON lisible par Battement et par vous.">
             <div className="settingrow__buttons">
               <button type="button" className="btn btn--ghost btn--small" onClick={exportJson}>
                 <Icon name="download" size={15} /> JSON
@@ -726,7 +726,7 @@ export function SettingsPage() {
               <li>Pollinations</li>
             </ul>
             <p>
-              PulseCraft est un projet indépendant, non affilié à Apple ni à Samsung. Apple Health
+              Battement est un projet indépendant, non affilié à Apple ni à Samsung. Apple Health
               et Samsung Health sont des marques de leurs propriétaires. Aucune donnée n’est
               revendue, aucun traqueur n’est chargé.
             </p>

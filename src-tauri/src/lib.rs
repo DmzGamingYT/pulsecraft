@@ -1,4 +1,4 @@
-//! Coque native de PulseCraft.
+//! Coque native de Battement.
 //!
 //! Le front est exactement le même que sur le Web : le build Vite est embarqué
 //! dans une WebView native. Aucune commande Rust n'est exposée au front pour
@@ -11,5 +11,5 @@
 pub fn run() {
     tauri::Builder::default()
         .run(tauri::generate_context!())
-        .expect("PulseCraft n'a pas pu démarrer");
+        .expect("Battement n'a pas pu démarrer");
 }

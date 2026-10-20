@@ -121,6 +121,68 @@ describe('plan long terme', () => {
     expect(first?.date).toBe('2026-05-06');
   });
 
+  it('détaille les séances de renforcement au poids du corps, dips compris', () => {
+    const plan = buildPlan(
+      intake({ goal: 'force', experience: 'intermediaire', equipment: 'aucun' }),
+      { today }
+    );
+    const strength = plan.weeks[0]!.sessions.filter((session) => session.type === 'Musculation');
+    expect(strength.length).toBeGreaterThan(0);
+    const exercises = strength.flatMap((session) => session.exercises ?? []);
+    expect(exercises.length).toBeGreaterThan(0);
+    const dips = exercises.find((exercise) => exercise.name.includes('Dips'));
+    expect(dips).toBeDefined();
+    expect(dips?.sets).toBeGreaterThanOrEqual(3);
+    expect(dips?.reps).toContain('6–10');
+    expect(dips?.restSec).toBe(90);
+    expect(dips?.note).toBeTruthy();
+  });
+
+  it('adapte les mouvements au matériel et au niveau', () => {
+    const bodyweight = buildPlan(
+      intake({ goal: 'force', experience: 'debutant', equipment: 'aucun' }),
+      { today }
+    );
+    const gym = buildPlan(
+      intake({ goal: 'force', experience: 'avance', equipment: 'salle' }),
+      { today }
+    );
+    const bodyDips = bodyweight.weeks[0]!.sessions
+      .flatMap((session) => session.exercises ?? [])
+      .find((exercise) => exercise.name.includes('Dips'));
+    const gymDips = gym.weeks[0]!.sessions
+      .flatMap((session) => session.exercises ?? [])
+      .find((exercise) => exercise.name.includes('Dips'));
+    expect(bodyDips?.name).toBe('Dips sur banc, pieds au sol');
+    expect(gymDips?.name).toBe('Dips lestées');
+    expect(bodyDips?.name).not.toBe(gymDips?.name);
+  });
+
+  it('démarre aujourd’hui quand le bilan est fait en semaine', () => {
+    const tuesday = '2026-05-05';
+    const plan = buildPlan(intake({ goal: 'force', daysPerWeek: 3 }), {
+      today: tuesday,
+      startToday: true,
+    });
+    expect(plan.weeks[0]?.sessions.some((session) => session.day === 1)).toBe(true);
+    expect(sessionForDate(plan, tuesday)).not.toBeNull();
+    expect(plan.weeks[0]?.sessions.every((session) => session.day >= 1)).toBe(true);
+    expect(plan.weeks[0]?.sessions.length).toBeLessThan(3);
+    expect(plan.weeks[0]?.focus).toContain('Mise en route');
+  });
+
+  it('allège aussi les séries de renforcement en semaine 4', () => {
+    const plan = buildPlan(
+      intake({ goal: 'force', experience: 'intermediaire', equipment: 'aucun' }),
+      { today }
+    );
+    const first = plan.weeks[0]!.sessions.flatMap((session) => session.exercises ?? [])[0];
+    const deload = plan.weeks[3]!.sessions.flatMap((session) => session.exercises ?? [])[0];
+    expect(first).toBeDefined();
+    expect(deload).toBeDefined();
+    expect(deload!.sets).toBeLessThan(first!.sets);
+  });
+
   it('n’envoie jamais la note libre dans le contexte IA', () => {
     const secret = 'douleur au genou droit, ne pas oublier';
     const plan = buildPlan(intake({ constraints: secret }), { today });

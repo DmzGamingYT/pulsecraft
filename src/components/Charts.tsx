@@ -49,8 +49,19 @@ export function LineChart({
   const innerHeight = height - 26;
   const innerWidth = width - 16;
 
-  const x = (index: number) =>
-    8 + (points.length > 1 ? (index / (points.length - 1)) * innerWidth : innerWidth / 2);
+  // La courbe occupe toute la largeur utile : sinon 90 jours de série dont
+  // seuls les derniers sont mesurés laissent une moitié de graphique vide.
+  const firstIndex = points.findIndex(
+    (point) => point.value !== null && Number.isFinite(point.value)
+  );
+  const lastIndex = points.reduce(
+    (found, point, index) =>
+      point.value !== null && Number.isFinite(point.value) ? index : found,
+    firstIndex
+  );
+  const span = Math.max(1, lastIndex - firstIndex);
+
+  const x = (index: number) => 8 + ((index - firstIndex) / span) * innerWidth;
   const y = (value: number) => 8 + (1 - (value - low) / (high - low)) * (innerHeight - 16);
 
   const segments: Array<{ x: number; y: number }[]> = [];
@@ -65,7 +76,8 @@ export function LineChart({
   });
   if (current.length > 0) segments.push(current);
 
-  const last = points[points.length - 1];
+  const first = points[firstIndex];
+  const last = points[lastIndex];
   const lastValue = last?.value;
 
   return (
@@ -73,7 +85,8 @@ export function LineChart({
       <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img">
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+            <stop offset="0%" stopColor={color} stopOpacity="0.26" />
+            <stop offset="55%" stopColor={color} stopOpacity="0.08" />
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -139,7 +152,7 @@ export function LineChart({
       </svg>
 
       <div className="chart-axis">
-        <span>{points[0] ? formatMedium(points[0].date) : ''}</span>
+        <span>{first ? formatMedium(first.date) : ''}</span>
         <span className="chart-axis__mid">
           {goal !== undefined ? `objectif ${formatValue(goal)}` : ''}
         </span>
@@ -165,6 +178,10 @@ interface BarChartProps {
   label: string;
   /** met la dernière barre en avant (jour en cours) */
   highlightLast?: boolean;
+  /** étiquette d'axe personnalisée (semaines, mois…) */
+  tickFormat?: (date: string) => string;
+  /** une étiquette sur N, les autres restent vides mais alignées */
+  tickEvery?: number;
 }
 
 export function BarChart({
@@ -176,6 +193,8 @@ export function BarChart({
   emptyLabel = 'Pas encore de données',
   label,
   highlightLast = false,
+  tickFormat,
+  tickEvery = 1,
 }: BarChartProps) {
   const values = points.map((point) => point.value ?? 0);
   const max = Math.max(goal ?? 0, ...values, 1);
@@ -187,6 +206,11 @@ export function BarChart({
   return (
     <figure className={`chart chart--bars${highlightLast ? ' chart--last' : ''}`} aria-label={label}>
       <div className="bars" style={{ height }}>
+        <div className="bars__grid" aria-hidden>
+          {[0.25, 0.5, 0.75].map((ratio) => (
+            <span key={ratio} style={{ bottom: `${ratio * 100}%` }} />
+          ))}
+        </div>
         {goal !== undefined && goal > 0 ? (
           <span
             className="bars__goal"
@@ -194,7 +218,7 @@ export function BarChart({
             title={`Objectif : ${formatValue(goal)}`}
           />
         ) : null}
-        {points.map((point) => {
+        {points.map((point, index) => {
           const value = point.value ?? 0;
           const ratio = value / max;
           return (
@@ -208,7 +232,8 @@ export function BarChart({
                 style={{
                   height: ratio > 0 ? `max(3px, ${ratio * 100}%)` : '2px',
                   background: ratio > 0 ? color : 'var(--line)',
-                  opacity: 0.45 + Math.min(0.55, ratio),
+                  opacity: 0.5 + Math.min(0.5, ratio),
+                  ['--i' as string]: index,
                 }}
               />
             </div>
@@ -216,19 +241,18 @@ export function BarChart({
         })}
       </div>
       <div className="bars__axis">
-        {points.length <= 14
-          ? points.map((point) => (
-              <span key={point.date} className="bars__tick">
-                {formatWeekday(point.date).slice(0, 1)}
-              </span>
-            ))
-          : points
-              .filter((_, index) => index % 7 === 0)
-              .map((point) => (
-                <span key={point.date} className="bars__tick">
-                  {formatMedium(point.date)}
-                </span>
-              ))}
+        {points.map((point, index) => {
+          const shown = index % Math.max(1, tickEvery) === 0 || index === points.length - 1;
+          const fallback =
+            points.length <= 14
+              ? formatWeekday(point.date).slice(0, 1)
+              : formatMedium(point.date);
+          return (
+            <span key={point.date} className="bars__tick">
+              {shown ? (tickFormat ? tickFormat(point.date) : fallback) : ''}
+            </span>
+          );
+        })}
       </div>
       <figcaption className="chart-caption">
         Total&nbsp;:{' '}
@@ -307,6 +331,13 @@ export function Heatmap({ days }: { days: HeatmapDay[] }) {
   );
 }
 
+/** Trois teintes de la même famille froide : le stade se lit d'un coup d'œil. */
+export const STAGE_COLORS = {
+  deep: '#6d7cff',
+  rem: '#b48cff',
+  light: 'rgba(56, 217, 255, 0.45)',
+} as const;
+
 export function StageBar({
   deep,
   rem,
@@ -321,9 +352,14 @@ export function StageBar({
   const remPct = Math.min(100 - deepPct, (rem / safeTotal) * 100);
   return (
     <div className="stagebar" aria-label={`Sommeil profond ${Math.round(deepPct)} %, REM ${Math.round(remPct)} %`}>
-      <span style={{ width: `${deepPct}%`, background: '#7d8cff' }} />
-      <span style={{ width: `${remPct}%`, background: '#b48cff' }} />
-      <span style={{ width: `${Math.max(0, 100 - deepPct - remPct)}%`, background: 'rgba(56,217,255,.55)' }} />
+      <span style={{ width: `${deepPct}%`, background: STAGE_COLORS.deep }} />
+      <span style={{ width: `${remPct}%`, background: STAGE_COLORS.rem }} />
+      <span
+        style={{
+          width: `${Math.max(0, 100 - deepPct - remPct)}%`,
+          background: STAGE_COLORS.light,
+        }}
+      />
     </div>
   );
 }

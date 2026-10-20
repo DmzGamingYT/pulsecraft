@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { fmtNumber } from '../lib/format';
 
 interface Ring {
@@ -15,7 +15,7 @@ interface RingsProps {
 }
 
 /** Anneaux d'objectifs façon Apple Health, mais honnêtes : chaque anneau
- *  correspond à une donnée que PulseCraft sait réellement mesurer. */
+ *  correspond à une donnée que Battement sait réellement mesurer. */
 export function Rings({ rings, subtitle }: RingsProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -23,10 +23,12 @@ export function Rings({ rings, subtitle }: RingsProps) {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const size = 236;
+  const uid = useId().replace(/:/g, '');
+  const size = 244;
   const center = size / 2;
-  const thickness = 15;
-  const gap = 5;
+  const thickness = 14;
+  const gap = 6;
+  const completed = rings.filter((ring) => ring.goal > 0 && ring.value >= ring.goal).length;
 
   return (
     <div className="rings-block">
@@ -39,6 +41,21 @@ export function Rings({ rings, subtitle }: RingsProps) {
             .map((ring) => `${ring.label} : ${Math.round(ring.value)} sur ${ring.goal} ${ring.unit}`)
             .join(', ')}
         >
+          <defs>
+            {rings.map((ring, index) => (
+              <linearGradient
+                key={`${ring.label}-gradient`}
+                id={`${uid}-ring-${index}`}
+                x1="0.1"
+                y1="0"
+                x2="0.9"
+                y2="1"
+              >
+                <stop offset="0%" stopColor={ring.color} />
+                <stop offset="100%" stopColor={ring.color} stopOpacity="0.7" />
+              </linearGradient>
+            ))}
+          </defs>
           {rings.map((ring, index) => {
             const radius = center - thickness / 2 - index * (thickness + gap);
             const circumference = 2 * Math.PI * radius;
@@ -59,7 +76,7 @@ export function Rings({ rings, subtitle }: RingsProps) {
                   cy={center}
                   r={radius}
                   fill="none"
-                  stroke={ring.color}
+                  stroke={`url(#${uid}-ring-${index})`}
                   strokeWidth={thickness}
                   strokeLinecap="round"
                   strokeDasharray={circumference}
@@ -73,7 +90,7 @@ export function Rings({ rings, subtitle }: RingsProps) {
         </svg>
         <div className="rings-center" aria-hidden="true">
           <span className="rings-center__value">
-            {rings.filter((ring) => ring.value >= ring.goal && ring.goal > 0).length}/3
+            {completed}/{rings.length}
           </span>
           <span className="rings-center__label">objectifs</span>
         </div>

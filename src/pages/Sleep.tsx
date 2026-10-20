@@ -5,7 +5,7 @@ import { sleepSeries, sleepStats } from '../lib/analytics';
 import { formatLong, relativeDay, todayISO } from '../lib/dates';
 import { fmtMinutes, fmtSleep } from '../lib/format';
 import { PageHeader, SectionCard, StatTile, EmptyState, SourceBadge } from '../components/Page';
-import { BarChart, StageBar, ProgressBar } from '../components/Charts';
+import { BarChart, STAGE_COLORS, StageBar, ProgressBar } from '../components/Charts';
 import { SleepModal } from '../components/Forms';
 import { Icon } from '../components/Icon';
 import { sleepScore } from '../lib/core';
@@ -149,9 +149,16 @@ export function SleepPage() {
                 <>
                   <StageBar deep={last.deepMin ?? 0} rem={last.remMin ?? 0} total={last.durationMin} />
                   <ul className="stagelegend">
-                    <li><i style={{ background: '#7d8cff' }} /> Profond <strong>{fmtMinutes(last.deepMin ?? 0)}</strong></li>
-                    <li><i style={{ background: '#b48cff' }} /> REM <strong>{fmtMinutes(last.remMin ?? 0)}</strong></li>
-                    <li><i style={{ background: 'rgba(56,217,255,.55)' }} /> Léger <strong>{fmtMinutes(Math.max(0, last.durationMin - (last.deepMin ?? 0) - (last.remMin ?? 0)))}</strong></li>
+                    <li><i style={{ background: STAGE_COLORS.deep }} /> Profond <strong>{fmtMinutes(last.deepMin ?? 0)}</strong></li>
+                    <li><i style={{ background: STAGE_COLORS.rem }} /> REM <strong>{fmtMinutes(last.remMin ?? 0)}</strong></li>
+                    <li>
+                      <i style={{ background: STAGE_COLORS.light }} /> Léger{' '}
+                      <strong>
+                        {fmtMinutes(
+                          Math.max(0, last.durationMin - (last.deepMin ?? 0) - (last.remMin ?? 0))
+                        )}
+                      </strong>
+                    </li>
                   </ul>
                 </>
               ) : (

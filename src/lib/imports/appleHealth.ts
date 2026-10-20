@@ -4,7 +4,7 @@
  * Le fichier fait souvent plusieurs centaines de mégaoctets : il est lu en
  * flux, ligne de balise par ligne de balise, et **agrégé à la volée**. Aucun
  * XML complet n'est conservé en mémoire, et seules les données utiles à
- * PulseCraft sont gardées (pas, énergie, FC de repos, eau, sommeil, poids,
+ * Battement sont gardées (pas, énergie, FC de repos, eau, sommeil, poids,
  * masse grasse, séances).
  *
  * Limites assumées : les exports `.zip` doivent être décompressés, les données

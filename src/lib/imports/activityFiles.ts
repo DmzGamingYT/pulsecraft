@@ -1,7 +1,7 @@
 /**
  * Import d'un parcours GPX ou d'une activité TCX.
  *
- * Ces formats ne contiennent qu'une séance : PulseCraft calcule la distance à
+ * Ces formats ne contiennent qu'une séance : Battement calcule la distance à
  * partir des coordonnées (formule de haversine), le dénivelé positif et la
  * durée entre le premier et le dernier point. Aucune trace n'est conservée :
  * seuls les agrégats de la séance sont enregistrés, pas le parcours complet.

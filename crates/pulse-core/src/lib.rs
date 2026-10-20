@@ -1,4 +1,4 @@
-//! Noyau de calcul de PulseCraft.
+//! Noyau de calcul de Battement.
 //!
 //! Toutes les fonctions sont pures et testées nativement (`cargo test`). Les
 //! wrappers WebAssembly (module `wasm`) ne font que les exposer au navigateur.

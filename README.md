@@ -1,8 +1,8 @@
-# PulseCraft
+# Battement
 
 **Suivi sportif et santé, local-first, avec un coach IA.**
 
-PulseCraft réunit dans une seule application ce qu'Apple Health et Samsung Health
+Battement réunit dans une seule application ce qu'Apple Health et Samsung Health
 font chacun de leur côté : anneaux d'objectifs, journal d'entraînement, sommeil,
 composition corporelle, nutrition et un coach capable de commenter votre semaine.
 La différence : **les données restent sur votre appareil**, le code est public et
@@ -11,7 +11,7 @@ il n'y a ni compte, ni abonnement, ni télémétrie.
 - Frontend : React 18 + TypeScript + Vite
 - Noyau de calcul : Rust compilé en WebAssembly (`crates/pulse-core`)
 - Application de bureau : Tauri 2 (`src-tauri/`)
-- Persistance : IndexedDB, aucune requête vers un serveur PulseCraft
+- Persistance : IndexedDB, aucune requête vers un serveur Battement
 
 [**Essayer dans le navigateur →**](https://site-837caca50a67485a994f4549b9ef7404.freebuff.page/pulsecraft/)
 (aucune installation, aucune donnée envoyée)
@@ -117,8 +117,8 @@ npm run tauri:dev  # application de bureau
 npm run tauri:build
 ```
 
-> Le port 5186 est réservé à PulseCraft (5183 = TubeCraft, 5184 = SpotifyCraft,
-> 5185 = la vitrine « L'Atelier ») pour que tout l'écosystème tourne en même temps.
+> Le port 5186 est réservé à Battement (5183 = Séquence, 5184 = Portée,
+> 5185 = la vitrine Craftline) pour que tout l'écosystème tourne en même temps.
 
 ---
 
@@ -159,5 +159,5 @@ server/aiProxy.ts      relais de développement pour le coach
 MIT — voir [LICENSE](LICENSE).
 
 Les noms Apple Health et Samsung Health appartiennent à leurs éditeurs
-respectifs ; PulseCraft n'est affilié ni à Apple ni à Samsung. Inspiration
+respectifs ; Battement n'est affilié ni à Apple ni à Samsung. Inspiration
 d'interface uniquement.

@@ -14,7 +14,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('[PulseCraft] Erreur de rendu', error, info.componentStack);
+    console.error('[Battement] Erreur de rendu', error, info.componentStack);
   }
 
   render() {
@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
         <div className="crash">
           <PulseMark size={46} />
           <p className="kicker">Erreur inattendue</p>
-          <h1>PulseCraft a rencontré un problème.</h1>
+          <h1>Battement a rencontré un problème.</h1>
           <p>
             Vos données locales ne sont pas perdues. Rechargez la page ; si le problème persiste,
             ouvrez les outils de développement du navigateur pour voir le détail.
