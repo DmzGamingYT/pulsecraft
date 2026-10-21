@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Battement">
+  <defs>
+    <linearGradient id="m-bg" x1="0.05" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#ffa46c"/>
+      <stop offset="0.32" stop-color="#f0692c"/>
+      <stop offset="0.63" stop-color="#ce4719"/>
+      <stop offset="1" stop-color="#892708"/>
+    </linearGradient>
+    <radialGradient id="m-hot" cx="0.26" cy="0.1" r="0.8">
+      <stop offset="0" stop-color="#ffe0c6" stop-opacity="0.75"/>
+      <stop offset="0.45" stop-color="#ffb07a" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#ff8a4a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="m-tube" x1="0" y1="0.16" x2="0" y2="0.88">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.4" stop-color="#fff9f1"/>
+      <stop offset="0.78" stop-color="#ffe5d0"/>
+      <stop offset="1" stop-color="#f8c3a4"/>
+    </linearGradient>
+    <linearGradient id="m-shade" x1="0" y1="0.38" x2="0" y2="0.96">
+      <stop offset="0" stop-color="#8f330e" stop-opacity="0"/>
+      <stop offset="0.6" stop-color="#8f330e" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#5f1e03" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="m-bead" x1="0.22" y1="0.05" x2="0.72" y2="0.95">
+      <stop offset="0" stop-color="#4a4133"/>
+      <stop offset="0.5" stop-color="#191610"/>
+      <stop offset="1" stop-color="#0a0906"/>
+    </linearGradient>
+    <filter id="m-blurL" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="18"/></filter>
+    <filter id="m-blurM" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="m-blurS" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <filter id="m-grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#m-bg)"/>
+  <rect width="512" height="512" fill="url(#m-hot)"/>
+
+  <g transform="translate(256 256) scale(0.74) translate(-256 -256)">
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="#ffd0ae" stroke-opacity="0.5" stroke-width="60" stroke-linecap="round" stroke-linejoin="round" filter="url(#m-blurL)"/>
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="url(#m-tube)" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="url(#m-shade)" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -6)" filter="url(#m-blurS)"/>
+    <circle cx="412" cy="302" r="21" fill="#5f1e03" fill-opacity="0.35" filter="url(#m-blurM)" transform="translate(0 6)"/>
+    <circle cx="412" cy="302" r="19" fill="url(#m-bead)"/>
+    <circle cx="406" cy="295" r="6" fill="#ffffff" fill-opacity="0.45" filter="url(#m-blurS)"/>
+  </g>
+
+  <rect width="512" height="512" filter="url(#m-grain)" opacity="0.55"/>
+</svg>

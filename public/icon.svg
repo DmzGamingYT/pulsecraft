@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Battement">
+  <defs>
+    <!-- Fond : braise chaude, du miel au brun profond -->
+    <linearGradient id="bg" x1="0.05" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#ffa46c"/>
+      <stop offset="0.32" stop-color="#f0692c"/>
+      <stop offset="0.63" stop-color="#ce4719"/>
+      <stop offset="1" stop-color="#892708"/>
+    </linearGradient>
+    <radialGradient id="hot" cx="0.26" cy="0.12" r="0.74">
+      <stop offset="0" stop-color="#ffe0c6" stop-opacity="0.8"/>
+      <stop offset="0.42" stop-color="#ffb07a" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#ff8a4a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="deep" cx="0.84" cy="0.94" r="0.72">
+      <stop offset="0" stop-color="#4d1202" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#4d1202" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- La dalle de verre -->
+    <linearGradient id="glass" x1="0.1" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="0.34" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="0.66" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0.12" y1="0" x2="0.82" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.92"/>
+      <stop offset="0.34" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="0.72" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Le tracé : un tube de verre plein -->
+    <linearGradient id="tube" x1="0" y1="0.16" x2="0" y2="0.88">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.4" stop-color="#fff9f1"/>
+      <stop offset="0.76" stop-color="#ffe5d0"/>
+      <stop offset="1" stop-color="#f8c3a4"/>
+    </linearGradient>
+    <linearGradient id="tubeShade" x1="0" y1="0.38" x2="0" y2="0.96">
+      <stop offset="0" stop-color="#8f330e" stop-opacity="0"/>
+      <stop offset="0.6" stop-color="#8f330e" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#5f1e03" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="bead" x1="0.22" y1="0.05" x2="0.72" y2="0.95">
+      <stop offset="0" stop-color="#4a4133"/>
+      <stop offset="0.5" stop-color="#191610"/>
+      <stop offset="1" stop-color="#0a0906"/>
+    </linearGradient>
+
+    <filter id="blurL" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="blurM" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="blurS" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
+    </filter>
+    <clipPath id="squircle"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <rect width="512" height="512" fill="url(#hot)"/>
+    <rect width="512" height="512" fill="url(#deep)"/>
+
+    <!-- dalle de verre, légèrement en retrait du bord -->
+    <rect x="22" y="22" width="468" height="468" rx="94" fill="url(#glass)"/>
+    <rect x="22" y="22" width="468" height="468" rx="94" fill="none" stroke="url(#rim)" stroke-width="2.2"/>
+    <rect x="31" y="31" width="450" height="450" rx="85" fill="none" stroke="#5e1c06" stroke-opacity="0.16" stroke-width="2.2"/>
+
+    <!-- reflet principal + petite brillance -->
+    <ellipse cx="150" cy="88" rx="150" ry="66" fill="url(#sheen)" filter="url(#blurL)" transform="rotate(-16 150 88)"/>
+    <ellipse cx="112" cy="58" rx="64" ry="22" fill="#ffffff" fill-opacity="0.32" filter="url(#blurM)" transform="rotate(-18 112 58)"/>
+    <path d="M60 302a198 198 0 0 1 160-212" fill="none" stroke="#ffffff" stroke-opacity="0.34" stroke-width="2.2" stroke-linecap="round" filter="url(#blurS)"/>
+
+    <!-- le battement, en tube de verre -->
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="#ffd0ae" stroke-opacity="0.5" stroke-width="62" stroke-linecap="round" stroke-linejoin="round" filter="url(#blurL)"/>
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="url(#tube)" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="url(#tubeShade)" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M70 268h84l42-118 78 236 52-152 34 68h82" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -6)" filter="url(#blurS)"/>
+
+    <!-- la perle : le point du battement -->
+    <g>
+      <circle cx="412" cy="304" r="20" fill="#5f1e03" fill-opacity="0.22" filter="url(#blurS)" transform="translate(0 5)"/>
+      <circle cx="412" cy="302" r="19" fill="url(#bead)"/>
+      <circle cx="406" cy="295" r="6" fill="#ffffff" fill-opacity="0.45" filter="url(#blurS)"/>
+      <circle cx="419" cy="309" r="3.2" fill="#ffffff" fill-opacity="0.22" filter="url(#blurS)"/>
+    </g>
+
+    <!-- réfraction basse + grain -->
+    <path d="M36 432c114 42 326 42 440 0v56H36Z" fill="#ffbd95" fill-opacity="0.14" filter="url(#blurL)"/>
+    <rect width="512" height="512" filter="url(#grain)" opacity="0.55"/>
+  </g>
+</svg>

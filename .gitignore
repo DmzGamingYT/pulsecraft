@@ -1,0 +1,25 @@
+# sans barre finale : attrape aussi un node_modules qui est un lien symbolique
+node_modules
+dist/
+dist-ssr/
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Noyau Rust / Tauri
+crates/*/target/
+src-tauri/target/
+src-tauri/gen/
+target/
+
+# Éditeurs
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
+*.tsbuildinfo
+
+# état local de l’agent, pas du code source
+.freebuff/
