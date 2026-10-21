@@ -351,8 +351,8 @@ export function Settings({
         <footer className="settings__foot">
           <p>
             Battement 0.2.0 · MIT · local-first. Les imports Apple Santé, Samsung Health et les
-            fichiers GPX/TCX sont lus sur l’appareil, jamais envoyés. Les polices sont embarquées :
-            la page ne contacte aucun serveur.
+            fichiers GPX, TCX et FIT sont lus sur l’appareil, jamais envoyés. Les polices sont
+            embarquées et la coquille est mise en cache : la page ne contacte aucun serveur.
           </p>
         </footer>
       </div>

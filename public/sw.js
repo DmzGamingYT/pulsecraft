@@ -10,18 +10,51 @@
  * page sont mises en cache, et uniquement depuis cette origine.
  */
 
-const VERSION = 'battement-v1';
+const VERSION = 'battement-v3';
 const SHELL = new URL('./', self.location.href).href;
 const INDEX = new URL('./index.html', self.location.href).href;
+
+/**
+ * Les noms des fichiers JS et CSS sont hachés à chaque build : on les découvre
+ * en lisant l'index au moment de l'installation, sinon la première visite ne
+ * serait pas disponible hors ligne (le worker s'active après le chargement).
+ */
+async function precache(cache) {
+  const response = await fetch(INDEX, { cache: 'no-cache' });
+  if (!response.ok) throw new Error('index illisible');
+  const html = await response.text();
+  const urls = new Set([SHELL, INDEX]);
+
+  const references = /(?:src|href)="([^"]+)"/g;
+  let match;
+  while ((match = references.exec(html))) {
+    const url = new URL(match[1], INDEX);
+    if (url.origin === self.location.origin) urls.add(url.href);
+  }
+
+  // Les polices ne sont citées que par la feuille de style.
+  const stylesheet = [...urls].find((url) => /\.css($|\?)/.test(url));
+  if (stylesheet) {
+    try {
+      const css = await (await fetch(stylesheet, { cache: 'no-cache' })).text();
+      for (const [, , value] of css.matchAll(/url\((['"]?)([^'")]+)\1\)/g)) {
+        if (!value) continue;
+        const url = new URL(value, stylesheet);
+        if (url.origin === self.location.origin) urls.add(url.href);
+      }
+    } catch {
+      // Une feuille de style absente ne bloque pas l'installation.
+    }
+  }
+
+  await Promise.all([...urls].map((url) => cache.add(url).catch(() => undefined)));
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(VERSION);
-      // Une icône manquante ne doit pas empêcher l'installation.
-      await Promise.all(
-        [SHELL, INDEX].map((url) => cache.add(url).catch(() => undefined)),
-      );
+      await precache(cache).catch(() => undefined);
       await self.skipWaiting();
     })(),
   );
