@@ -10,6 +10,13 @@
 export interface ZipTextEntry {
   name: string;
   text: string;
+  /** les octets bruts, pour les formats binaires comme le FIT */
+  bytes?: Uint8Array;
+}
+
+export interface ZipOptions {
+  onProgress?: (done: number, total: number) => void;
+  signal?: AbortSignal;
 }
 
 /** Une entrée plus grosse que ça est presque sûrement une archive à part. */
@@ -34,7 +41,10 @@ function decodeName(bytes: Uint8Array): string {
   }
 }
 
-export async function readZip(buffer: ArrayBuffer): Promise<ZipTextEntry[]> {
+export async function readZip(
+  buffer: ArrayBuffer,
+  options: ZipOptions = {},
+): Promise<ZipTextEntry[]> {
   if (buffer.byteLength < 22) throw new Error('Archive ZIP vide ou incomplète.');
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
@@ -47,6 +57,8 @@ export async function readZip(buffer: ArrayBuffer): Promise<ZipTextEntry[]> {
   let cursor = directoryOffset;
 
   for (let index = 0; index < count; index += 1) {
+    if (options.signal?.aborted) throw new DOMException('Import annulé.', 'AbortError');
+    options.onProgress?.(index + 1, count);
     if (cursor + 46 > view.byteLength || view.getUint32(cursor, true) !== CENTRAL) break;
 
     const method = view.getUint16(cursor + 10, true);
@@ -61,7 +73,10 @@ export async function readZip(buffer: ArrayBuffer): Promise<ZipTextEntry[]> {
     cursor += 46 + nameLength + extraLength + commentLength;
 
     if (!name || name.endsWith('/')) continue;
-    if (!/\.(xml|csv|txt)$/i.test(name)) continue;
+    if (!/\.(xml|csv|txt|gpx|tcx|fit)$/i.test(name)) continue;
+    // `export_cda.xml` est le carnet médical au format CDA : plusieurs
+    // gigaoctets possibles, et aucune séance ni pas à en tirer.
+    if (/export_cda\.xml$/i.test(name)) continue;
     if (uncompressedSize > MAX_ENTRY_BYTES) {
       throw new Error(
         `« ${name} » est trop volumineux (${Math.round(uncompressedSize / 1024 / 1024)} Mo). Décompressez l’archive et importez le fichier seul.`,
@@ -91,11 +106,16 @@ export async function readZip(buffer: ArrayBuffer): Promise<ZipTextEntry[]> {
       continue;
     }
 
-    entries.push({ name, text: new TextDecoder('utf-8').decode(data) });
+    entries.push({
+      name,
+      // Un FIT est binaire : décoder ses octets en texte n'aurait aucun sens.
+      text: /\.fit$/i.test(name) ? '' : new TextDecoder('utf-8').decode(data),
+      bytes: /\.fit$/i.test(name) ? data : undefined,
+    });
   }
 
   if (entries.length === 0) {
-    throw new Error('Aucun fichier XML ou CSV lisible dans cette archive.');
+    throw new Error('Aucun fichier XML, CSV, GPX, TCX ou FIT lisible dans cette archive.');
   }
 
   return entries;

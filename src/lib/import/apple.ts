@@ -1,5 +1,6 @@
 import type { DayLog, DraftActivity, ParsedImport, Sport } from '../../types';
 import { datePart } from '../dates';
+import { throwIfAborted } from './signal';
 
 /**
  * Export « Santé » d'Apple : un `export.xml` (souvent dans `export.zip`).
@@ -114,12 +115,20 @@ function workoutSport(type: string | undefined): { sport: Sport; title: string }
 }
 
 /** Les séances d'un export Santé, avec leurs statistiques imbriquées. */
-function parseWorkouts(xml: string, warnings: string[]): DraftActivity[] {
+function parseWorkouts(
+  xml: string,
+  warnings: string[],
+  signal?: AbortSignal,
+): DraftActivity[] {
   const activities: DraftActivity[] = [];
   const pattern = /<Workout\b([^>]*?)(?:\/>|>([\s\S]*?)<\/Workout>)/g;
   let match: RegExpExecArray | null;
+  let seen = 0;
 
   while ((match = pattern.exec(xml))) {
+    // Un export peut contenir des milliers de séances : on laisse l'utilisateur
+    // annuler entre deux lots plutôt qu'après la fin.
+    if ((seen += 1) % 2_000 === 0) throwIfAborted(signal);
     const attrs = attributes(match[1] ?? '');
     const inner = match[2] ?? '';
     const start = toIso(attrs.startDate);
@@ -143,6 +152,9 @@ function parseWorkouts(xml: string, warnings: string[]): DraftActivity[] {
         0,
       );
     const heart = stats.find((stat) => /HeartRate/i.test(stat.type ?? ''));
+    const elevation = stats
+      .filter((stat) => /ElevationAscended/i.test(stat.type ?? ''))
+      .reduce((sum, stat) => sum + (number(stat.sum) ?? 0), 0);
 
     const distance =
       kilometers(attrs.totalDistance, attrs.totalDistanceUnit) ??
@@ -157,6 +169,7 @@ function parseWorkouts(xml: string, warnings: string[]): DraftActivity[] {
       title: mapped.title,
       durationMin: Math.round(durationMinutes(attrs.duration, attrs.durationUnit)),
       distanceKm: distance !== undefined ? Math.round(distance * 100) / 100 : undefined,
+      elevationM: elevation > 0 ? Math.round(elevation) : undefined,
       calories: calories !== undefined ? Math.round(calories) : undefined,
       avgHr: number(heart?.average) !== undefined ? Math.round(number(heart?.average) ?? 0) : undefined,
       maxHr: number(heart?.maximum) !== undefined ? Math.round(number(heart?.maximum) ?? 0) : undefined,
@@ -176,25 +189,75 @@ function parseWorkouts(xml: string, warnings: string[]): DraftActivity[] {
  * journée, on garde donc le maximum par jour (comme le fait l'import Samsung
  * pour deux exports successifs).
  */
-function parseRecords(xml: string): { days: DayLog[]; stepSources: number } {
+function parseRecords(
+  xml: string,
+  signal?: AbortSignal,
+): {
+  days: DayLog[];
+  stepSources: number;
+  sleepSources: number;
+} {
   const bySource = new Map<string, Map<string, { steps: number; activeCalories: number }>>();
+  const sleepBySource = new Map<string, Map<string, number>>();
+  const resting = new Map<string, { value: number; at: string }>();
+  const vo2 = new Map<string, number>();
   const stepSources = new Set<string>();
+  const sleepSources = new Set<string>();
   const pattern = /<Record\b([^>]*?)\/?>/g;
   let match: RegExpExecArray | null;
+  let seen = 0;
 
   while ((match = pattern.exec(xml))) {
+    if ((seen += 1) % 20_000 === 0) throwIfAborted(signal);
     const attrs = attributes(match[1] ?? '');
     const type = attrs.type ?? '';
     const isSteps = type === 'HKQuantityTypeIdentifierStepCount';
     const isEnergy = type === 'HKQuantityTypeIdentifierActiveEnergyBurned';
-    if (!isSteps && !isEnergy) continue;
+    const isSleep = type === 'HKCategoryTypeIdentifierSleepAnalysis';
+    const isResting = type === 'HKQuantityTypeIdentifierRestingHeartRate';
+    const isVo2 = type === 'HKQuantityTypeIdentifierVO2Max';
+    if (!isSteps && !isEnergy && !isSleep && !isResting && !isVo2) continue;
 
     const start = toIso(attrs.startDate);
-    const amount = number(attrs.value);
-    if (!start || amount === undefined) continue;
-
-    const day = datePart(start);
+    if (!start) continue;
     const source = attrs.sourceName || attrs.sourceRevision || 'Apple Santé';
+    const amount = number(attrs.value);
+
+    if (isSleep) {
+      const value = attrs.value ?? '';
+      // `InBed` et `Awake` ne sont pas du sommeil : les additionner gonflerait
+      // la nuit. Les stades (`AsleepCore`, `AsleepDeep`, `AsleepREM`…) et la
+      // valeur historique `Asleep` le sont.
+      if (!/Asleep/i.test(value)) continue;
+      const end = toIso(attrs.endDate);
+      if (!end) continue;
+      const minutes =
+        (new Date(end).getTime() - new Date(start).getTime()) / 60_000;
+      if (!Number.isFinite(minutes) || minutes < 1 || minutes > 900) continue;
+      const day = datePart(end);
+      const nights = sleepBySource.get(source) ?? new Map<string, number>();
+      nights.set(day, (nights.get(day) ?? 0) + minutes);
+      sleepBySource.set(source, nights);
+      sleepSources.add(source);
+      continue;
+    }
+
+    if (amount === undefined) continue;
+    const day = datePart(start);
+
+    if (isResting) {
+      // La FC de repos est une valeur calculée par jour : on garde la plus
+      // récente, pas une somme.
+      const existing = resting.get(day);
+      if (!existing || start > existing.at) resting.set(day, { value: Math.round(amount), at: start });
+      continue;
+    }
+
+    if (isVo2) {
+      vo2.set(day, Math.max(vo2.get(day) ?? 0, amount));
+      continue;
+    }
+
     const sourceDays =
       bySource.get(source) ?? new Map<string, { steps: number; activeCalories: number }>();
     const totals = sourceDays.get(day) ?? { steps: 0, activeCalories: 0 };
@@ -213,20 +276,46 @@ function parseRecords(xml: string): { days: DayLog[]; stepSources: number } {
   const byDate = new Map<string, DayLog>();
   for (const sourceDays of bySource.values()) {
     for (const [day, totals] of sourceDays) {
-      const log = byDate.get(day) ?? { date: day, steps: 0, activeCalories: 0 };
+      const log = byDate.get(day) ?? { date: day };
       log.steps = Math.max(log.steps ?? 0, totals.steps) || undefined;
       log.activeCalories = Math.max(log.activeCalories ?? 0, totals.activeCalories) || undefined;
       byDate.set(day, log);
     }
   }
 
+  // Le sommeil suit la même règle que les pas : plusieurs appareils peuvent
+  // avoir vu la même nuit, on garde la plus longue, jamais la somme.
+  for (const nights of sleepBySource.values()) {
+    for (const [day, minutes] of nights) {
+      const log = byDate.get(day) ?? { date: day };
+      log.sleepMin = Math.max(log.sleepMin ?? 0, Math.round(minutes)) || undefined;
+      byDate.set(day, log);
+    }
+  }
+
+  for (const [day, entry] of resting) {
+    const log = byDate.get(day) ?? { date: day };
+    log.restingHr = entry.value;
+    byDate.set(day, log);
+  }
+  for (const [day, value] of vo2) {
+    const log = byDate.get(day) ?? { date: day };
+    log.vo2max = Math.round(value * 10) / 10;
+    byDate.set(day, log);
+  }
+
   return {
     days: [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)),
     stepSources: stepSources.size,
+    sleepSources: sleepSources.size,
   };
 }
 
-export function parseAppleHealth(xml: string, fileName = 'export.xml'): ParsedImport {
+export function parseAppleHealth(
+  xml: string,
+  fileName = 'export.xml',
+  options: { signal?: AbortSignal } = {},
+): ParsedImport {
   const warnings: string[] = [];
   if (!/<HealthData\b/.test(xml) && !/<Workout\b/.test(xml) && !/<Record\b/.test(xml)) {
     return {
@@ -238,8 +327,8 @@ export function parseAppleHealth(xml: string, fileName = 'export.xml'): ParsedIm
     };
   }
 
-  const activities = parseWorkouts(xml, warnings);
-  const records = parseRecords(xml);
+  const activities = parseWorkouts(xml, warnings, options.signal);
+  const records = parseRecords(xml, options.signal);
 
   if (activities.length === 0 && records.days.length === 0) {
     warnings.push('Aucune séance ni donnée de pas trouvée dans cet export.');
@@ -247,6 +336,11 @@ export function parseAppleHealth(xml: string, fileName = 'export.xml'): ParsedIm
   if (records.stepSources > 1) {
     warnings.push(
       'Plusieurs appareils ont compté des pas les mêmes jours : le maximum par jour a été gardé pour éviter de doubler.',
+    );
+  }
+  if (records.sleepSources > 1) {
+    warnings.push(
+      'Plusieurs appareils ont enregistré du sommeil : la nuit la plus longue a été gardée pour chaque jour.',
     );
   }
 

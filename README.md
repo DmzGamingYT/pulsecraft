@@ -15,12 +15,35 @@ est servie sur `/pulsecraft/` à côté de Feuillet.
   par mois, suppression d'une ligne.
 - **Importer** — glisser-déposer un `export.zip` Apple Santé ou les CSV Samsung
   Health. Le fichier est lu dans l'onglet, sans requête réseau.
+- **Programme** — un coach calculé sur l'appareil : il lit les quatre dernières
+  semaines (fréquence, disciplines, jours actifs, durée moyenne, charge récente
+  face à la base 28 jours), pose un plan de quatre semaines, puis le réajuste
+  après un point de suivi hebdomadaire. Aucun appel réseau, aucune clé.
 - **Progrès** — huit semaines de régularité, répartition par sport, records,
   provenance des données.
 - **Réglages** — objectifs de minutes et de pas, thème clair/sombre, export JSON,
   démonstration, effacement local.
 - **Démo** — `?demo=1` ouvre un journal d'exemple de six semaines. Le drapeau ne
   remplace jamais un journal déjà rempli, et n'affiche aucune visite guidée.
+
+## Le coach, et ce qu'il emprunte
+
+Rien n'est envoyé nulle part : le plan se calcule dans l'onglet, à partir du
+journal déjà présent. Trois idées viennent de ce que font les montres :
+
+| Battement | D'où ça vient |
+| --- | --- |
+| Charge : 7 derniers jours contre la moyenne des 28 jours | la charge d'entraînement d'Apple Santé |
+| Énergie du jour : repos, charge récente, pas | le score d'énergie de Samsung Health |
+| Plan de 4 semaines + point de suivi | les programmes de sommeil de Samsung |
+
+Le point de suivi n'est pas décoratif : selon le ressenti et la fatigue, les
+séances à venir perdent 15 % de volume, en gagnent 8 %, ou gardent le cap. Deux
+garde-fous l'empêchent de déformer le plan : le volume cumulé reste entre −25 %
+et +15 % de la version d'origine — une bonne semaine peut donc rendre ce qu'un
+point difficile avait retiré — et un point saisi en retard ne réécrit jamais une
+séance déjà passée. Une séance déjà présente au journal compte comme faite sans
+être recochée.
 
 ## Les imports, pour de vrai
 
@@ -108,10 +131,11 @@ npm run build:atelier   # paquet Sites : /, /feuillet/, /pulsecraft/
 
 ### Tests
 
-25 tests couvrent les parseurs Apple et Samsung, le lecteur ZIP, la détection
-de source, la fusion, les statistiques hebdomadaires, les records et l'entrée en
-mode démo. Les fixtures XML/CSV sont écrites dans les tests ; l'archive ZIP est
-un base64 généré avec Python, pour ne pas versionner de binaire.
+57 tests couvrent les parseurs Apple et Samsung, le lecteur ZIP, la détection
+de source, la fusion, les statistiques hebdomadaires, les records, le coach (plan
+et point de suivi) et l'entrée en mode démo. Les fixtures XML/CSV sont écrites
+dans les tests ; l'archive ZIP est un base64 généré avec Python, pour ne pas
+versionner de binaire.
 
 ## Structure
 

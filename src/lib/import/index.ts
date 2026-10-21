@@ -1,15 +1,29 @@
 import type { ParsedImport, Source } from '../../types';
 import { parseAppleHealth } from './apple';
 import { parseSamsungHealth } from './samsung';
+import { isFit, parseFit } from './fit';
+import { isGpx, isTcx, parseGpx, parseTcx } from './track';
 import { readZip } from './zip';
+import { throwIfAborted } from './signal';
 
 export interface TextFile {
   name: string;
   text: string;
+  /** les octets d'un fichier binaire (FIT) ; absent pour les fichiers texte */
+  bytes?: Uint8Array;
 }
 
 export interface ImportOptions {
   onStep?: (message: string) => void;
+  /** avancement global, de 0 à 1 */
+  onProgress?: (value: number) => void;
+  signal?: AbortSignal;
+}
+
+function report(options: ImportOptions, message: string, progress: number): void {
+  throwIfAborted(options.signal);
+  options.onStep?.(message);
+  options.onProgress?.(Math.max(0, Math.min(1, progress)));
 }
 
 /** Décompresse les ZIP et lit les fichiers texte, sans dépendance. */
@@ -18,16 +32,34 @@ export async function readImportFiles(
   options: ImportOptions = {},
 ): Promise<TextFile[]> {
   const collected: TextFile[] = [];
+  const total = Math.max(1, files.length);
 
-  for (const file of files) {
+  for (const [index, file] of files.entries()) {
+    throwIfAborted(options.signal);
+    const base = 0.05 + (index / total) * 0.35;
+
     if (/\.zip$/i.test(file.name)) {
-      options.onStep?.(`Ouverture de ${file.name}…`);
-      const entries = await readZip(await file.arrayBuffer());
+      report(options, `Ouverture de ${file.name}…`, base);
+      const entries = await readZip(await file.arrayBuffer(), {
+        signal: options.signal,
+        onProgress: (done, count) => {
+          options.onProgress?.(base + (0.35 * done) / Math.max(1, count));
+        },
+      });
       collected.push(...entries);
       continue;
     }
-    if (!/\.(xml|csv|txt)$/i.test(file.name)) continue;
-    options.onStep?.(`Lecture de ${file.name}…`);
+    if (/\.fit$/i.test(file.name)) {
+      report(options, `Lecture de ${file.name}…`, base);
+      collected.push({
+        name: file.name,
+        text: '',
+        bytes: new Uint8Array(await file.arrayBuffer()),
+      });
+      continue;
+    }
+    if (!/\.(xml|csv|txt|gpx|tcx)$/i.test(file.name)) continue;
+    report(options, `Lecture de ${file.name}…`, base);
     collected.push({ name: file.name, text: await file.text() });
   }
 
@@ -49,7 +81,7 @@ function merge(source: Source, imports: ParsedImport[]): ParsedImport {
  * Reconnaît les exports à leur contenu plutôt qu'à leur seul nom : un ZIP
  * Samsung contient beaucoup de CSV et un ZIP Apple d'autres XML parasites.
  */
-export function parseTextFiles(files: TextFile[]): ParsedImport[] {
+export function parseTextFiles(files: TextFile[], options: ImportOptions = {}): ParsedImport[] {
   const xmlFiles = files.filter(
     (file) =>
       /\.xml$/i.test(file.name) &&
@@ -59,16 +91,45 @@ export function parseTextFiles(files: TextFile[]): ParsedImport[] {
   const csvFiles = files.filter(
     (file) =>
       /\.csv$/i.test(file.name) &&
-      /(exercise|step_count|stepcount)/i.test(file.name),
+      /(exercise|step_count|stepcount|sleep)/i.test(file.name) &&
+      !/sleep_stage/i.test(file.name),
   );
+  const gpxFiles = files.filter((file) => /\.gpx$/i.test(file.name) && isGpx(file.text));
+  const tcxFiles = files.filter((file) => /\.tcx$/i.test(file.name) && isTcx(file.text));
+  const fitFiles = files.filter((file) => /\.fit$/i.test(file.name) && isFit(file.bytes));
 
   const results: ParsedImport[] = [];
 
   if (xmlFiles.length > 0) {
-    results.push(merge('apple', xmlFiles.map((file) => parseAppleHealth(file.text, file.name))));
+    report(options, 'Analyse de l’export Apple Santé…', 0.45);
+    results.push(
+      merge(
+        'apple',
+        xmlFiles.map((file) => parseAppleHealth(file.text, file.name, { signal: options.signal })),
+      ),
+    );
+    report(options, 'Sommeil, cœur, séances : lecture terminée.', 0.8);
   }
   if (csvFiles.length > 0) {
+    report(options, 'Analyse de l’export Samsung Health…', 0.82);
     results.push(merge('samsung', [parseSamsungHealth(csvFiles)]));
+  }
+  if (gpxFiles.length > 0) {
+    report(options, 'Lecture des tracés GPX…', 0.85);
+    results.push(merge('fichier', gpxFiles.map((file) => parseGpx(file.text, file.name))));
+  }
+  if (tcxFiles.length > 0) {
+    report(options, 'Lecture des fichiers TCX…', 0.88);
+    results.push(merge('fichier', tcxFiles.map((file) => parseTcx(file.text, file.name))));
+  }
+  if (fitFiles.length > 0) {
+    report(options, 'Lecture des fichiers FIT…', 0.9);
+    results.push(
+      merge(
+        'fichier',
+        fitFiles.map((file) => parseFit(file.bytes ?? new Uint8Array(), file.name)),
+      ),
+    );
   }
 
   return results;
@@ -84,13 +145,14 @@ export async function importFiles(
 ): Promise<ParsedImport[]> {
   const texts = await readImportFiles(files, options);
   if (texts.length === 0) {
-    throw new Error('Aucun fichier XML ou CSV lisible dans la sélection.');
+    throw new Error('Aucun fichier XML, CSV, GPX, TCX ou FIT lisible dans la sélection.');
   }
-  const parsed = parseTextFiles(texts);
+  const parsed = parseTextFiles(texts, options);
   if (parsed.length === 0) {
     throw new Error(
-      'Export non reconnu. Prenez le fichier export.zip d’Apple Santé ou les CSV Samsung Health.',
+      'Export non reconnu. Prenez le fichier export.zip d’Apple Santé, les CSV Samsung Health, ou un fichier GPX/TCX/FIT.',
     );
   }
+  options.onProgress?.(0.95);
   return parsed;
 }

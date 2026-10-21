@@ -1,7 +1,5 @@
 /** Dates locales, sans dépendance : le journal vit dans le fuseau de l'appareil. */
 
-const DAY = 86_400_000;
-
 export function isoDate(date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -11,6 +9,14 @@ export function isoDate(date = new Date()): string {
 
 export function todayISO(): string {
   return isoDate();
+}
+
+/** L'horodatage local complet, pour une séance ajoutée « maintenant ». */
+export function localStamp(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${isoDate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+    date.getSeconds(),
+  )}`;
 }
 
 /** La date (YYYY-MM-DD) d'un horodatage ISO, sans passer par UTC. */
@@ -24,8 +30,22 @@ export function parseDay(day: string): Date {
   return new Date(year ?? 1970, (month ?? 1) - 1, date ?? 1);
 }
 
+export function weekdayOf(day: string): number {
+  return parseDay(day).getDay();
+}
+
+/** La date du lundi de la semaine qui contient `day`. */
+export function mondayOf(day: string): string {
+  return addDays(day, -((weekdayOf(day) + 6) % 7));
+}
+
 export function addDays(day: string, delta: number): string {
-  return isoDate(new Date(parseDay(day).getTime() + delta * DAY));
+  // `setDate` plutôt que millisecondes : un changement d'heure ne déplace pas
+  // la date. Ajouter 7 × 24 h traversait le passage à l'heure d'hiver et
+  // renvoyait le dimanche au lieu du lundi suivant.
+  const date = parseDay(day);
+  date.setDate(date.getDate() + delta);
+  return isoDate(date);
 }
 
 /** Les `count` derniers jours, du plus ancien au plus récent, en terminant par `end`. */
@@ -86,4 +106,56 @@ export function formatDistance(km: number | undefined): string {
 export function formatNumber(value: number | undefined): string {
   if (value === undefined || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('fr-FR').format(Math.round(value));
+}
+
+/** L'allure en minutes par kilomètre, quand la distance est connue. */
+export function paceMinPerKm(
+  durationMin: number,
+  distanceKm: number | undefined,
+): number | undefined {
+  if (!distanceKm || distanceKm <= 0 || durationMin <= 0) return undefined;
+  return durationMin / distanceKm;
+}
+
+/** « 5:24 /km » — l'allure se lit en minutes et secondes, pas en décimales. */
+export function formatPace(minPerKm: number | undefined): string {
+  if (minPerKm === undefined || !Number.isFinite(minPerKm) || minPerKm <= 0) return '—';
+  const minutes = Math.floor(minPerKm);
+  const seconds = Math.round((minPerKm - minutes) * 60);
+  const carried = seconds === 60 ? minutes + 1 : minutes;
+  const rest = seconds === 60 ? 0 : seconds;
+  return `${carried}:${String(rest).padStart(2, '0')} /km`;
+}
+
+export function speedKmh(
+  durationMin: number,
+  distanceKm: number | undefined,
+): number | undefined {
+  if (!distanceKm || distanceKm <= 0 || durationMin <= 0) return undefined;
+  return distanceKm / (durationMin / 60);
+}
+
+/** « 23,4 km/h » — le vélo se lit en vitesse, pas en allure. */
+export function formatSpeed(kmh: number | undefined): string {
+  if (kmh === undefined || !Number.isFinite(kmh) || kmh <= 0) return '—';
+  return `${kmh.toFixed(1).replace('.', ',')} km/h`;
+}
+
+/** Les sports où l'allure au kilomètre parle ; les autres se lisent en vitesse. */
+export function usesPace(sport: string): boolean {
+  return sport === 'course' || sport === 'marche' || sport === 'rando';
+}
+
+/** La mesure de déplacement d'une séance, déjà formatée. */
+export function movementLabel(
+  sport: string,
+  durationMin: number,
+  distanceKm: number | undefined,
+): string | undefined {
+  if (usesPace(sport)) {
+    const pace = paceMinPerKm(durationMin, distanceKm);
+    return pace === undefined ? undefined : formatPace(pace);
+  }
+  const speed = speedKmh(durationMin, distanceKm);
+  return speed === undefined ? undefined : formatSpeed(speed);
 }

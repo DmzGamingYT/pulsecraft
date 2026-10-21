@@ -51,4 +51,14 @@ describe('parseTextFiles', () => {
   it('ne détecte rien dans un fichier sans données de santé', () => {
     expect(parseTextFiles([{ name: 'page.xml', text: '<html/>' }])).toEqual([]);
   });
+
+  it('reconnaît un FIT à son en-tête binaire', () => {
+    const bytes = new Uint8Array(32);
+    bytes.set([0x2e, 0x46, 0x49, 0x54], 8);
+    const result = parseTextFiles([{ name: 'sortie.fit', text: '', bytes }]);
+    // L'en-tête passe la détection ; le corps vide ne produit qu'un avertissement.
+    expect(result).toHaveLength(1);
+    expect(result[0]?.source).toBe('fichier');
+    expect(result[0]?.warnings.length).toBeGreaterThan(0);
+  });
 });

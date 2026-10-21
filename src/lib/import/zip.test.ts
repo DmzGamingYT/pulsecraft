@@ -13,13 +13,14 @@ function archive(): ArrayBuffer {
 }
 
 describe('readZip', () => {
-  it('décompresse les fichiers texte du répertoire central', async () => {
+  it('décompresse les fichiers texte utiles du répertoire central', async () => {
     const entries = await readZip(archive());
 
-    expect(entries.map((entry) => entry.name)).toEqual([
-      'apple_health_export/export.xml',
-      'apple_health_export/export_cda.xml',
-    ]);
+    expect(entries.map((entry) => entry.name)).toEqual(['apple_health_export/export.xml']);
+    // Le carnet médical CDA est volontairement écarté : il peut peser des
+    // gigaoctets et ne contient ni séance ni pas. Ce test le fige ici pour
+    // qu'un futur changement de filtre ne le réintroduise pas par accident.
+    expect(entries.some((entry) => /export_cda\\.xml$/i.test(entry.name))).toBe(false);
     expect(entries[0]?.text).toContain('<HealthData>');
     expect(entries[0]?.text).toContain('value="42"');
   });

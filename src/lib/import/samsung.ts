@@ -216,6 +216,59 @@ function parseExercise(file: TextFile, warnings: string[]): DraftActivity[] {
   return activities;
 }
 
+/**
+ * Le sommeil Samsung vit dans `com.samsung.health.sleep.*.csv` (pas le fichier
+ * `sleep_stage`, qui détaille les phases et compterait deux fois la nuit).
+ * Les bornes changent selon la version : on lit `start_time`/`end_time` par nom.
+ */
+function parseSleep(file: TextFile, warnings: string[]): DayLog[] {
+  const rows = parseCsv(file.text);
+  const limit = Math.min(rows.length, 10);
+  let table: Table | null = null;
+
+  for (let index = 0; index < limit; index += 1) {
+    const candidate = rows[index];
+    if (!candidate) continue;
+    const headers = candidate.map(normalizeHeader);
+    const hasStart = headers.includes('start_time');
+    const hasEnd = headers.some((header) => header === 'end_time' || header === 'sleep_end_time');
+    if (hasStart && hasEnd) {
+      table = {
+        headers,
+        rows: rows.slice(index + 1).filter((row) => row.some((cell) => cell.trim() !== '')),
+      };
+      break;
+    }
+  }
+
+  if (!table) {
+    warnings.push(
+      `« ${file.name} » ne contient pas de nuits lisibles (colonnes start_time et end_time attendues).`,
+    );
+    return [];
+  }
+
+  const byDate = new Map<string, DayLog>();
+  for (const row of table.rows) {
+    const start = normalizeStart(pick(row, table.headers, ['start_time']));
+    const end = normalizeStart(pick(row, table.headers, ['end_time', 'sleep_end_time']));
+    if (!start || !end) continue;
+    const minutes = Math.round(
+      (new Date(end.replace(' ', 'T')).getTime() - new Date(start.replace(' ', 'T')).getTime()) /
+        60_000,
+    );
+    // Une nuit de moins de 30 min ou de plus de 20 h trahit une ligne de
+    // résumé ou un fuseau cassé : on l'ignore au lieu de fausser la moyenne.
+    if (!Number.isFinite(minutes) || minutes < 30 || minutes > 1200) continue;
+    const day = datePartOf(end);
+    const log = byDate.get(day) ?? { date: day };
+    log.sleepMin = Math.max(log.sleepMin ?? 0, minutes);
+    byDate.set(day, log);
+  }
+
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function parseSteps(file: TextFile, warnings: string[]): DayLog[] {
   const table = readTable(file.text);
   if (!table) {
@@ -260,14 +313,30 @@ export function parseSamsungHealth(files: TextFile[]): ParsedImport {
   // Un seul fichier de pas : les exports contiennent parfois un résumé et des
   // intervalles, les additionner compterait deux fois la même journée.
   const stepFile = stepCandidates.find((file) => /step_count|stepcount/i.test(file.name)) ?? stepCandidates[0];
+  const sleepFiles = files.filter(
+    (file) => /\.csv$/i.test(file.name) && /sleep/i.test(file.name) && !/stage/i.test(file.name),
+  );
 
   const activities = exerciseFiles.flatMap((file) => parseExercise(file, warnings));
-  const days = stepFile ? parseSteps(stepFile, warnings) : [];
+  const stepDays = stepFile ? parseSteps(stepFile, warnings) : [];
+  const sleepDays = sleepFiles.flatMap((file) => parseSleep(file, warnings));
+
+  // Les pas et le sommeil partagent la même journée : on les recolle.
+  const byDate = new Map<string, DayLog>();
+  for (const log of [...stepDays, ...sleepDays]) {
+    const existing = byDate.get(log.date) ?? { date: log.date };
+    byDate.set(log.date, {
+      ...existing,
+      ...log,
+      steps: Math.max(existing.steps ?? 0, log.steps ?? 0) || undefined,
+    });
+  }
+  const days = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 
   if (exerciseFiles.length === 0) {
     warnings.push('Aucun fichier de séances Samsung (`com.samsung.health.exercise.*.csv`) trouvé.');
   }
-  if (!stepFile) {
+  if (!stepFile && sleepFiles.length === 0) {
     warnings.push('Aucun fichier de pas Samsung (`com.samsung.health.step_count.*.csv`) trouvé.');
   }
 

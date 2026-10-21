@@ -1,5 +1,8 @@
+import { useId } from 'react';
 import { formatDuration } from '../lib/dates';
 import type { DayBar } from '../lib/analytics';
+import type { Sport } from '../types';
+import { Icon, type IconName } from './Icons';
 
 /** Jauge circulaire : minutes actives de la semaine. */
 export function GoalRing({
@@ -17,16 +20,28 @@ export function GoalRing({
   const pct = Math.min(1, ratio);
   const offset = circumference * (1 - pct);
   const realPct = Math.round(ratio * 100);
+  const gradient = `ring-${useId().replace(/:/g, '')}`;
 
   return (
-    <div className="ring" style={{ width: size, height: size }}>
+    <div
+      className={`ring${realPct > 100 ? ' ring--over' : ''}`}
+      style={{ width: size, height: size }}
+    >
       <svg viewBox="0 0 128 128" aria-hidden="true">
+        <defs>
+          <linearGradient id={gradient} x1="18" y1="20" x2="112" y2="110" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="var(--accent)" />
+            <stop offset="0.58" stopColor="var(--accent-2)" />
+            <stop offset="1" stopColor="var(--rose)" />
+          </linearGradient>
+        </defs>
         <circle className="ring__track" cx="64" cy="64" r={radius} />
         <circle
           className="ring__value"
           cx="64"
           cy="64"
           r={radius}
+          style={{ stroke: `url(#${gradient})` }}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
         />
@@ -42,11 +57,12 @@ export function GoalRing({
 /** Sept barres : les minutes de chaque jour de la semaine. */
 export function WeekBars({ bars, goal }: { bars: DayBar[]; goal: number }) {
   const max = Math.max(goal, ...bars.map((bar) => bar.minutes), 30);
+  const today = bars[bars.length - 1]?.day;
   return (
     <div className="bars-wrap">
       <div className="bars" role="img" aria-label="Minutes actives des sept derniers jours">
         {bars.map((bar) => (
-          <div className="bars__item" key={bar.day}>
+          <div className={`bars__item${bar.day === today ? ' is-today' : ''}`} key={bar.day}>
             <span className="bars__value">{bar.minutes > 0 ? Math.round(bar.minutes) : ''}</span>
             <span className="bars__track">
               {bar.minutes > 0 ? (
@@ -80,15 +96,21 @@ export function SplitBars({
   slices,
   total,
 }: {
-  slices: { label: string; minutes: number; sessions: number; glyph: string }[];
+  slices: {
+    sport: Sport;
+    label: string;
+    icon: IconName;
+    minutes: number;
+    sessions: number;
+  }[];
   total: number;
 }) {
   return (
     <ul className="split">
       {slices.map((slice) => (
-        <li key={slice.label} className="split__row">
+        <li key={slice.label} className="split__row" data-sport={slice.sport}>
           <span className="split__glyph" aria-hidden="true">
-            {slice.glyph}
+            <Icon name={slice.icon} size={15} />
           </span>
           <span className="split__label">{slice.label}</span>
           <span className="split__track">

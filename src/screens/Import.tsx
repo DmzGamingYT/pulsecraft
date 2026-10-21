@@ -1,7 +1,7 @@
 import { useRef, useState, type DragEvent } from 'react';
 import type { ImportSummary, ParsedImport } from '../types';
 import { SOURCE_LABELS } from '../types';
-import { importFiles } from '../lib/import';
+import { importInWorker } from '../lib/import/workerClient';
 import { Icon } from '../components/Icons';
 
 interface Imported {
@@ -17,21 +17,30 @@ export function ImportScreen({
   hasData: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const controller = useRef<AbortController | null>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState('');
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [results, setResults] = useState<Imported[]>([]);
 
   async function handle(files: File[]) {
     if (files.length === 0 || busy) return;
+    const local = new AbortController();
+    controller.current = local;
     setBusy(true);
     setError('');
+    setProgress(0);
     setStep('Préparation…');
     try {
-      // Laisse le navigateur peindre l'état avant de parser un gros XML.
+      // Laisse le navigateur peindre l'état avant de lancer le worker.
       await new Promise((resolve) => setTimeout(resolve, 30));
-      const parsed = await importFiles(files, { onStep: setStep });
+      const parsed = await importInWorker(files, {
+        onStep: setStep,
+        onProgress: setProgress,
+        signal: local.signal,
+      });
       const next: Imported[] = [];
       for (const item of parsed) {
         setStep(`Enregistrement de ${SOURCE_LABELS[item.source]}…`);
@@ -42,12 +51,21 @@ export function ImportScreen({
       setResults(next);
       setStep('');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Import impossible.');
+      if (cause instanceof DOMException && cause.name === 'AbortError') {
+        setError('Import annulé. Le journal n’a pas été modifié.');
+      } else {
+        setError(cause instanceof Error ? cause.message : 'Import impossible.');
+      }
       setStep('');
     } finally {
+      controller.current = null;
       setBusy(false);
       if (input.current) input.current.value = '';
     }
+  }
+
+  function cancel() {
+    controller.current?.abort();
   }
 
   function drop(event: DragEvent<HTMLDivElement>) {
@@ -65,12 +83,11 @@ export function ImportScreen({
         <p className="eyebrow">Importer</p>
         <h1 className="screen__title">
           Vos données, sans détour.
-        </h1>
-        <p className="screen__lede">
-          Battement lit les exports d’Apple Santé et de Samsung Health directement
-          dans votre navigateur. Rien n’est envoyé : le fichier ne quitte pas cet
-          appareil.
-        </p>
+        </h1>          <p className="screen__lede">
+            Battement lit les exports d’Apple Santé et de Samsung Health, et les fichiers
+            GPX, TCX ou FIT de vos montres. Tout est analysé dans un worker, sur cet appareil :
+            le fichier ne quitte pas le navigateur.
+          </p>
       </header>
 
       <div className="import-grid">
@@ -87,20 +104,35 @@ export function ImportScreen({
             ref={input}
             type="file"
             multiple
-            accept=".zip,.xml,.csv,.txt,application/zip,text/xml,text/csv"
+            accept=".zip,.xml,.csv,.txt,.gpx,.tcx,.fit,application/zip,text/xml,text/csv,application/gpx+xml,application/vnd.garmin.tcx+xml"
             className="visuallyhidden"
             id="import-files"
             onChange={(event) => void handle([...(event.target.files ?? [])])}
           />
           <span className="drop__icon">
-            <Icon name={busy ? 'clock' : 'upload'} size={26} />
+            <Icon name={busy ? 'clock' : 'import'} size={26} />
           </span>
           <h2>{busy ? 'Lecture en cours…' : 'Déposez un export ici'}</h2>
           <p>
             {busy
               ? step || 'Analyse du fichier…'
-              : 'export.zip d’Apple Santé, ou les CSV Samsung Health — plusieurs fichiers acceptés.'}
+              : 'export.zip d’Apple Santé, CSV Samsung Health, ou trace GPX / TCX / FIT — plusieurs fichiers acceptés.'}
           </p>
+          {busy ? (
+            <div className="import-progress">
+              <div
+                className="import-progress__track"
+                role="progressbar"
+                aria-label="Progression de l’import"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(progress * 100)}
+              >
+                <i style={{ width: `${Math.round(progress * 100)}%` }} />
+              </div>
+              <span>{Math.round(progress * 100)} %</span>
+            </div>
+          ) : null}
           <div className="drop__actions">
             <button
               type="button"
@@ -111,12 +143,19 @@ export function ImportScreen({
               <Icon name="file" size={16} />
               {busy ? 'Patientez' : 'Choisir des fichiers'}
             </button>
-            {!hasData ? <span className="drop__hint">Premier import ?</span> : null}
+            {busy ? (
+              <button type="button" className="btn btn--ghost" onClick={cancel}>
+                <Icon name="close" size={16} /> Annuler
+              </button>
+            ) : !hasData ? (
+              <span className="drop__hint">Premier import ?</span>
+            ) : null}
           </div>
           <ul className="drop__formats">
             <li>.zip</li>
             <li>.xml</li>
             <li>.csv</li>
+            <li>.gpx · .tcx · .fit</li>
             <li>100 % local</li>
           </ul>
         </div>
@@ -211,7 +250,7 @@ export function ImportScreen({
       ) : null}
 
       <div className="sources">
-        <article className="source-card">
+        <article className="source-card" data-source="apple">
           <header className="source-card__head">
             <span className="source-card__badge" data-source="apple">
               Apple
@@ -245,7 +284,7 @@ export function ImportScreen({
           </a>
         </article>
 
-        <article className="source-card">
+        <article className="source-card" data-source="samsung">
           <header className="source-card__head">
             <span className="source-card__badge" data-source="samsung">
               Samsung

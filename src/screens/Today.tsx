@@ -1,13 +1,21 @@
-import type { Activity, DayLog } from '../types';
+import type { Activity, DayLog, Sport } from '../types';
+import { sportLabel } from '../types';
 import {
   datePart,
   formatDistance,
   formatDuration,
   formatNumber,
   longDate,
+  shortDate,
   todayISO,
 } from '../lib/dates';
-import { records, weekStats } from '../lib/analytics';
+import {
+  activitiesBetween,
+  goalStreak,
+  goalWeeks,
+  records,
+  weekStats,
+} from '../lib/analytics';
 import { GoalRing, WeekBars } from '../components/Visuals';
 import { SessionRow } from '../components/SessionRow';
 import { Icon } from '../components/Icons';
@@ -18,17 +26,27 @@ export function Today({
   days,
   goalMin,
   stepGoal,
+  sessionsGoal,
+  distanceGoalKm,
+  sportGoals,
   demo,
   onNavigate,
   onAdd,
+  onOpen,
+  onEditDay,
 }: {
   activities: Activity[];
   days: DayLog[];
   goalMin: number;
   stepGoal: number;
+  sessionsGoal: number;
+  distanceGoalKm: number;
+  sportGoals: Partial<Record<Sport, number>>;
   demo: boolean;
   onNavigate: (view: View) => void;
   onAdd: () => void;
+  onOpen: (activity: Activity) => void;
+  onEditDay: (day?: DayLog) => void;
 }) {
   const today = todayISO();
   const week = weekStats(activities, days, today, goalMin);
@@ -40,6 +58,20 @@ export function Today({
   const stepRatio = stepGoal > 0 ? todaySteps / stepGoal : 0;
   const stepPct = Math.min(1, stepRatio);
   const empty = activities.length === 0 && days.length === 0;
+  const streakWeeks = goalStreak(activities, goalMin, today);
+  const weeks = goalWeeks(activities, goalMin, 8, today);
+  const weekActivities = activitiesBetween(activities, week.start, `${today}T23:59:59.999`);
+  const sportTargets = (Object.entries(sportGoals) as [Sport, number][])
+    .filter(([, minutes]) => minutes > 0)
+    .map(([sport, minutes]) => ({
+      sport,
+      goal: minutes,
+      done: weekActivities
+        .filter((activity) => activity.sport === sport)
+        .reduce((sum, activity) => sum + activity.durationMin, 0),
+    }));
+  const sessionsPct = sessionsGoal > 0 ? Math.min(1, week.sessions / sessionsGoal) : 0;
+  const distancePct = distanceGoalKm > 0 ? Math.min(1, week.distanceKm / distanceGoalKm) : 0;
 
   return (
     <section className="screen">
@@ -81,7 +113,11 @@ export function Today({
             que vous choisissez, sur votre appareil, et garde le reste ici.
           </p>
           <div className="empty__actions">
-            <button type="button" className="btn btn--primary" onClick={onNavigate.bind(null, 'import')}>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={onNavigate.bind(null, 'import')}
+            >
               <Icon name="import" size={17} /> Importer mes données
             </button>
             <button type="button" className="btn btn--ghost" onClick={onAdd}>
@@ -106,7 +142,7 @@ export function Today({
       ) : (
         <>
           <div className="today-grid">
-            <article className="card card--goal">
+            <article className="card card--goal" data-tone="accent">
               <header className="card__head">
                 <span className="card__label">Objectif de la semaine</span>
                 <span className="card__meta">7 jours glissants</span>
@@ -119,28 +155,77 @@ export function Today({
                     <span>sur {formatDuration(goalMin)}</span>
                   </p>
                   <ul className="goal__list">
-                    <li>
+                    <li data-tone="accent">
                       <Icon name="flame" size={15} />
                       {formatNumber(week.calories)} kcal
                     </li>
-                    <li>
+                    <li data-tone="blue">
                       <Icon name="route" size={15} />
                       {formatDistance(week.distanceKm)}
                     </li>
-                    <li>
-                      <Icon name="heart" size={15} />
+                    <li data-tone="rose">
+                      <Icon name="journal" size={15} />
                       {week.sessions} séance{week.sessions > 1 ? 's' : ''}
                     </li>
                   </ul>
                 </div>
               </div>
               <WeekBars bars={week.bars} goal={goalMin / 7} />
+
+              {sessionsGoal > 0 || distanceGoalKm > 0 || sportTargets.length > 0 ? (
+                <div className="goal-targets">
+                  {sessionsGoal > 0 ? (
+                    <div className="goal-target" data-tone="rose">
+                      <span className="micro">Séances</span>
+                      <strong>
+                        {week.sessions} / {sessionsGoal}
+                      </strong>
+                      <span className="goal-target__track">
+                        <i style={{ width: `${sessionsPct * 100}%` }} />
+                      </span>
+                    </div>
+                  ) : null}
+                  {distanceGoalKm > 0 ? (
+                    <div className="goal-target" data-tone="blue">
+                      <span className="micro">Distance</span>
+                      <strong>
+                        {formatDistance(week.distanceKm)} / {distanceGoalKm} km
+                      </strong>
+                      <span className="goal-target__track">
+                        <i style={{ width: `${distancePct * 100}%` }} />
+                      </span>
+                    </div>
+                  ) : null}
+                  {sportTargets.map((target) => (
+                    <div className="goal-target" data-tone="green" key={target.sport}>
+                      <span className="micro">{sportLabel(target.sport)}</span>
+                      <strong>
+                        {formatDuration(target.done)} / {formatDuration(target.goal)}
+                      </strong>
+                      <span className="goal-target__track">
+                        <i
+                          style={{
+                            width: `${Math.min(100, (target.done / target.goal) * 100)}%`,
+                          }}
+                        />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </article>
 
-            <article className="card card--today">
+            <article className="card card--today" data-tone="green">
               <header className="card__head">
                 <span className="card__label">Aujourd’hui</span>
-                <span className="card__meta">pas et séances</span>
+                <button
+                  type="button"
+                  className="textlink card__action"
+                  onClick={() => onEditDay(dayLog)}
+                >
+                  <Icon name="pencil" size={14} />
+                  {dayLog ? 'Corriger' : 'Renseigner'}
+                </button>
               </header>
 
               <div className="steps">
@@ -159,13 +244,27 @@ export function Today({
                 <span className="steps__track">
                   <i style={{ width: `${stepPct * 100}%` }} />
                 </span>
+                {dayLog?.sleepMin || dayLog?.restingHr ? (
+                  <p className="steps__meta">
+                    {dayLog.sleepMin ? (
+                      <span>
+                        <Icon name="moon" size={13} /> {formatSleep(dayLog.sleepMin)} de sommeil
+                      </span>
+                    ) : null}
+                    {dayLog.restingHr ? (
+                      <span>
+                        <Icon name="heart" size={13} /> {dayLog.restingHr} bpm au repos
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
 
               <div className="today__sessions">
                 {todaySessions.length > 0 ? (
                   <ul className="sessions">
                     {todaySessions.map((activity) => (
-                      <SessionRow key={activity.id} activity={activity} />
+                      <SessionRow key={activity.id} activity={activity} onOpen={onOpen} />
                     ))}
                   </ul>
                 ) : (
@@ -179,20 +278,39 @@ export function Today({
               </div>
 
               <div className="today__week">
-                <div>
-                  <span className="micro">Série</span>
+                <div data-tone="accent">
+                  <span className="micro">Semaines d’affilée</span>
                   <strong>
-                    {marks.streakDays} jour{marks.streakDays > 1 ? 's' : ''}
+                    {streakWeeks} semaine{streakWeeks > 1 ? 's' : ''}
                   </strong>
                 </div>
-                <div>
+                <div data-tone="blue">
                   <span className="micro">Cette semaine</span>
                   <strong>{formatDuration(week.minutes)}</strong>
                 </div>
-                <div>
+                <div data-tone="green">
                   <span className="micro">Pas</span>
                   <strong>{formatNumber(week.steps)}</strong>
                 </div>
+              </div>
+
+              <div className="goal-history" aria-label="Objectif tenu sur les huit dernières semaines">
+                {weeks.map((entry) => (
+                  <span
+                    key={entry.start}
+                    className={`goal-history__dot${entry.met ? ' is-on' : ''}${
+                      entry.current ? ' is-current' : ''
+                    }`}
+                    title={`Semaine du ${shortDate(entry.start)} : ${formatDuration(
+                      entry.minutes,
+                    )}${entry.met ? ' — objectif tenu' : ''}`}
+                  />
+                ))}
+                <span className="goal-history__label">
+                  {streakWeeks > 0
+                    ? `Objectif tenu ${streakWeeks} semaine${streakWeeks > 1 ? 's' : ''} de suite`
+                    : 'Objectif hebdomadaire non tenu la semaine dernière'}
+                </span>
               </div>
             </article>
           </div>
@@ -211,7 +329,12 @@ export function Today({
               </header>
               <ul className="sessions sessions--roomy">
                 {recent.map((activity) => (
-                  <SessionRow key={activity.id} activity={activity} showDate />
+                  <SessionRow
+                    key={activity.id}
+                    activity={activity}
+                    showDate
+                    onOpen={onOpen}
+                  />
                 ))}
               </ul>
             </section>
@@ -239,8 +362,12 @@ export function Today({
                   <dd>{formatDuration(marks.bestWeekMin)}</dd>
                 </div>
               </dl>
-              <button type="button" className="btn btn--ghost btn--full" onClick={() => onNavigate('progress')}>
-                Voir les progrès <Icon name="chart" size={16} />
+              <button
+                type="button"
+                className="btn btn--ghost btn--full"
+                onClick={() => onNavigate('progress')}
+              >
+                Voir les progrès <Icon name="trend" size={16} />
               </button>
             </aside>
           </div>
@@ -248,4 +375,11 @@ export function Today({
       )}
     </section>
   );
+}
+
+/** « 7 h 20 » — le sommeil se lit en heures, pas en minutes. */
+function formatSleep(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = Math.round(minutes % 60);
+  return `${hours} h ${String(rest).padStart(2, '0')}`;
 }
